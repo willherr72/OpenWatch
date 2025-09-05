@@ -19774,7 +19774,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Usermade:JXTCONN TS-1010-S26"
 			(at 232.41 38.1 0)
 			(effects
 				(font
@@ -20932,7 +20932,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Usermade:EPSON Q13FC13500004"
 			(at 138.43 177.8 0)
 			(effects
 				(font
@@ -21179,7 +21179,8 @@
 	)
 	(symbol
 		(lib_id "Device:R_Small")
-		(at 62.23 90.17 270)
+		(at 62.23 90.17 90)
+		(mirror x)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -21187,7 +21188,7 @@
 		(dnp no)
 		(uuid "48b11078-1a6e-4007-a789-8522f82a7f5c")
 		(property "Reference" "R21"
-			(at 60.452 86.36 90)
+			(at 64.008 86.36 90)
 			(effects
 				(font
 					(size 1.016 1.016)
@@ -21196,7 +21197,7 @@
 			)
 		)
 		(property "Value" "10k"
-			(at 60.452 88.392 90)
+			(at 64.008 88.392 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -21745,7 +21746,8 @@
 	)
 	(symbol
 		(lib_id "Device:R_Small")
-		(at 62.23 92.71 270)
+		(at 62.23 92.71 90)
+		(mirror x)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -21753,7 +21755,7 @@
 		(dnp no)
 		(uuid "50d70c2b-f0cc-4f03-9f95-5392b6067b11")
 		(property "Reference" "R22"
-			(at 68.326 91.44 90)
+			(at 56.134 91.44 90)
 			(effects
 				(font
 					(size 1.016 1.016)
@@ -21762,7 +21764,7 @@
 			)
 		)
 		(property "Value" "10k"
-			(at 68.326 93.472 90)
+			(at 56.134 93.472 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -23222,7 +23224,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Usermade:quectel lc76g"
 			(at 222.25 104.14 0)
 			(effects
 				(font
@@ -24461,7 +24463,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Usermade:EPSON Q13FC13500004"
 			(at 62.23 76.2 0)
 			(effects
 				(font
@@ -25842,7 +25844,8 @@
 	)
 	(symbol
 		(lib_id "Device:C_Small")
-		(at 62.23 95.25 90)
+		(at 62.23 95.25 270)
+		(mirror x)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -25850,7 +25853,7 @@
 		(dnp no)
 		(uuid "9fc08602-6b14-4ab6-a569-36d366bc64b6")
 		(property "Reference" "C19"
-			(at 60.452 99.568 90)
+			(at 64.008 99.568 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -25859,7 +25862,7 @@
 			)
 		)
 		(property "Value" "100n"
-			(at 59.944 98.044 90)
+			(at 64.516 98.044 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -26176,6 +26179,7 @@
 	(symbol
 		(lib_id "Device:C_Small")
 		(at 212.09 54.61 0)
+		(mirror y)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -26183,7 +26187,7 @@
 		(dnp no)
 		(uuid "a19fb8b0-9d02-4c59-9353-3f363e3d9d17")
 		(property "Reference" "C22"
-			(at 214.376 53.34 0)
+			(at 209.804 53.34 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -26192,7 +26196,7 @@
 			)
 		)
 		(property "Value" "10u"
-			(at 214.376 55.626 0)
+			(at 209.804 55.626 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -26553,7 +26557,6 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "a82e3b8e-8d86-4fe1-98eb-682acbf2d854")
 		(property "Reference" "SW2"
 			(at 233.68 57.15 0)
@@ -26563,21 +26566,20 @@
 				)
 			)
 		)
-		(property "Value" "SW_Push"
-			(at 233.68 59.69 0)
+		(property "Value" "JXTCONN TS-1010-S26"
+			(at 233.426 67.056 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Usermade:JXTCONN TS-1010-S26"
 			(at 233.68 59.69 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(property "Datasheet" "~"

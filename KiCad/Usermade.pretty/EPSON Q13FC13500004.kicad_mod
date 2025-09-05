@@ -1,0 +1,104 @@
+(footprint "EPSON Q13FC13500004"
+	(version 20241229)
+	(generator "pcbnew")
+	(generator_version "9.0")
+	(layer "F.Cu")
+	(property "Reference" "REF**"
+		(at 0.5 6 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(uuid "85bc4c0b-05a8-41c4-bd37-b1934eec8612")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.1)
+			)
+		)
+	)
+	(property "Value" "EPSON Q13FC13500004"
+		(at 0 7 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "0786c06e-81cc-4133-8cc2-3ade2439a465")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "300a7eb1-271e-43fb-945f-4161b1db8890")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "2b54b355-eb1b-4d35-824f-4af56e660db5")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr smd)
+	(fp_line
+		(start 0 -0.3)
+		(end 2.5 -0.3)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "22697cc1-b638-461d-85ac-99e99e854b30")
+	)
+	(fp_line
+		(start 0 2.3)
+		(end 2.5 2.3)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "e271384c-d108-45cc-9f47-bf17e71b802c")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0.5 8.5 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "a0d9b298-786b-4ddf-ba11-fc083280f1ad")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" smd roundrect
+		(at 0 1)
+		(size 1 1.8)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.15)
+		(uuid "4e999592-0c82-4115-9333-f024836bc174")
+	)
+	(pad "2" smd roundrect
+		(at 2.5 1)
+		(size 1 1.8)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.15)
+		(uuid "44bf76d6-bcf2-4d33-8194-71a9cbae4a67")
+	)
+	(embedded_fonts no)
+)
