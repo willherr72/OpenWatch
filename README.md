@@ -40,14 +40,18 @@ OpenWatch/
 
 ## 📚 Git Workflow Guide
 
-This section provides step-by-step instructions for using Git effectively in this project. All team members should be familiar with these commands.
+**⚠️ IMPORTANT: NEVER EDIT DIRECTLY IN MASTER BRANCH! ⚠️**
 
-### Initial Setup
+All team members MUST create a branch for their work, make changes in that branch, and then merge to main. This keeps the project organized and prevents conflicts.
+
+This section provides the essential Git commands you'll use daily. Keep it simple and follow these steps exactly.
+
+### First Time Setup (Do this once)
 
 #### 1. Clone the Repository
 ```bash
 # Clone the repository to your local machine
-git clone https://github.com/yourusername/OpenWatch.git
+git clone https://github.com/willherr72/OpenWatch.git
 
 # Navigate to the project directory
 cd OpenWatch
@@ -58,234 +62,77 @@ cd OpenWatch
 # Set your name and email
 git config --global user.name "Your Name"
 git config --global user.email "your.email@example.com"
-
-# Optional: Set default branch name
-git config --global init.defaultBranch main
 ```
 
-### Daily Workflow
+## 🚀 Daily Workflow (Follow These Steps Every Time)
 
-#### 3. Check Repository Status
+### Step 1: Start Your Work Session
 ```bash
-# See what files have been modified
+# 1. Get the latest changes from the team
+git pull origin master
+
+# 2. Create a new branch for your work (replace 'your-feature' with what you're working on)
+git checkout -b feature/your-feature
+
+# Example: git checkout -b feature/touch-screen
+# Example: git checkout -b fix/power-bug
+# Example: git checkout -b docs/update-readme
+```
+
+### Step 2: Make Your Changes
+```bash
+# 3. Make your changes to files (edit in your code editor)
+# 4. Check what files you've changed
 git status
 
-# See detailed changes
-git diff
-
-# See changes in a specific file
-git diff filename.txt
-```
-
-#### 4. Fetch Latest Changes
-```bash
-# Download latest changes from remote repository
-git fetch origin
-
-# See what changes are available
-git log HEAD..origin/main --oneline
-```
-
-#### 5. Pull Latest Changes
-```bash
-# Pull and merge latest changes from main branch
-git pull origin main
-
-# Or if you're on a different branch
-git pull origin main
-```
-
-### Working with Branches
-
-#### 6. Create a New Branch
-```bash
-# Create and switch to a new branch
-git checkout -b feature/your-feature-name
-
-# Or using newer syntax
-git switch -c feature/your-feature-name
-
-# List all branches
-git branch -a
-```
-
-#### 7. Switch Between Branches
-```bash
-# Switch to main branch
-git checkout main
-# or
-git switch main
-
-# Switch to a feature branch
-git checkout feature/your-feature-name
-# or
-git switch feature/your-feature-name
-```
-
-#### 8. Delete a Branch
-```bash
-# Delete local branch (after switching away from it)
-git branch -d feature/your-feature-name
-
-# Force delete if needed
-git branch -D feature/your-feature-name
-
-# Delete remote branch
-git push origin --delete feature/your-feature-name
-```
-
-### Making Changes
-
-#### 9. Stage Changes
-```bash
-# Stage all changes
+# 5. Add your changes
 git add .
 
-# Stage specific files
-git add filename.txt
-git add Code/Firmware/main.cpp
+# 6. Save your work with a message
+git commit -m "Add your feature description here"
 
-# Stage changes interactively
-git add -i
+# 7. Push your branch to GitHub
+git push origin feature/your-feature
 ```
 
-#### 10. Commit Changes
+### Step 3: Merge Your Work (When Ready)
 ```bash
-# Commit with a message
-git commit -m "Add new feature: touch screen calibration"
+# 8. Switch back to master
+git checkout master
 
-# Commit with detailed message
-git commit -m "Fix PCB layout issue
+# 9. Get latest changes
+git pull origin master
 
-- Corrected trace routing for power management
-- Updated component placement
-- Fixed clearance issues"
+# 10. Merge your branch
+git merge feature/your-feature
+
+# 11. Push to master
+git push origin master
+
+# 12. Delete your branch (optional)
+git branch -d feature/your-feature
 ```
 
-#### 11. Push Changes
-```bash
-# Push current branch to remote
-git push origin feature/your-feature-name
+## 📝 Essential Commands Cheat Sheet
 
-# Push and set upstream (first time)
-git push -u origin feature/your-feature-name
+| What you want to do | Command |
+|-------------------|---------|
+| See what files changed | `git status` |
+| Add all changes | `git add .` |
+| Save your work | `git commit -m "Your message"` |
+| Upload to GitHub | `git push origin feature/your-branch` |
+| Get team's latest work | `git pull origin master` |
+| Create new branch | `git checkout -b feature/your-name` |
+| Switch to master | `git checkout master` |
+| See all branches | `git branch` |
 
-# Push to main branch
-git push origin main
-```
+## ⚠️ Important Rules
 
-### Merging and Collaboration
-
-#### 12. Merge Branches
-```bash
-# Switch to target branch (usually main)
-git checkout main
-
-# Pull latest changes
-git pull origin main
-
-# Merge feature branch
-git merge feature/your-feature-name
-
-# Push merged changes
-git push origin main
-```
-
-#### 13. Resolve Merge Conflicts
-```bash
-# If conflicts occur during merge
-git status  # See conflicted files
-
-# Edit conflicted files to resolve conflicts
-# Look for <<<<<<< HEAD markers
-
-# After resolving conflicts
-git add resolved-file.txt
-git commit -m "Resolve merge conflict in resolved-file.txt"
-```
-
-#### 14. Rebase (Advanced)
-```bash
-# Rebase current branch onto main
-git checkout feature/your-feature-name
-git rebase main
-
-# Interactive rebase (for cleaning up commits)
-git rebase -i HEAD~3
-```
-
-### Undoing Changes
-
-#### 15. Undo Unstaged Changes
-```bash
-# Discard changes to a file
-git checkout -- filename.txt
-
-# Discard all unstaged changes
-git checkout -- .
-```
-
-#### 16. Undo Staged Changes
-```bash
-# Unstage a file
-git reset HEAD filename.txt
-
-# Unstage all files
-git reset HEAD
-```
-
-#### 17. Undo Commits
-```bash
-# Undo last commit (keep changes)
-git reset --soft HEAD~1
-
-# Undo last commit (discard changes)
-git reset --hard HEAD~1
-
-# Undo multiple commits
-git reset --hard HEAD~3
-```
-
-### Useful Commands
-
-#### 18. View History
-```bash
-# View commit history
-git log --oneline
-
-# View detailed history
-git log --graph --pretty=format:'%h -%d %s (%cr) <%an>' --abbrev-commit
-
-# View changes in a specific commit
-git show commit-hash
-```
-
-#### 19. Stash Changes
-```bash
-# Save current changes temporarily
-git stash
-
-# List stashes
-git stash list
-
-# Apply most recent stash
-git stash pop
-
-# Apply specific stash
-git stash apply stash@{0}
-```
-
-#### 20. Tag Releases
-```bash
-# Create a tag
-git tag -a v1.0.0 -m "Release version 1.0.0"
-
-# Push tags
-git push origin v1.0.0
-
-# List tags
-git tag
-```
+1. **ALWAYS create a branch before making changes**
+2. **NEVER work directly in master branch**
+3. **Use descriptive branch names** (feature/touch-screen, fix/power-bug, etc.)
+4. **Write clear commit messages** (what you did, not how you did it)
+5. **Pull before you push** (get latest changes first)
 
 ## 🔧 Development Guidelines
 
@@ -295,37 +142,19 @@ git tag
 - **Mechanical**: Keep all CAD files in `Mechanical/`
 - **PCB**: All KiCad files go in `KiCad/`
 
-### Commit Message Convention
-Use clear, descriptive commit messages:
-- `feat:` for new features
-- `fix:` for bug fixes
-- `docs:` for documentation changes
-- `style:` for formatting changes
-- `refactor:` for code refactoring
-- `test:` for adding tests
-
-Examples:
-```
-feat: Add touch screen calibration algorithm
-fix: Resolve power management issue in firmware
-docs: Update README with installation instructions
-```
-
-### Branch Naming
-Use descriptive branch names:
+### Branch Naming Examples
 - `feature/touch-screen-support`
 - `fix/power-management-bug`
 - `docs/update-readme`
-- `refactor/firmware-structure`
+- `feature/watch-face-display`
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Commit your changes (`git commit -m 'Add some amazing feature'`)
-5. Push to the branch (`git push origin feature/amazing-feature`)
-6. Open a Pull Request
+1. Create a feature branch (`git checkout -b feature/amazing-feature`)
+2. Make your changes
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Merge to master following the workflow above
 
 ## 📋 Project Status
 
