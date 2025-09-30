@@ -29,8 +29,8 @@ OpenWatch/
 - **Git** - Version control system
 - **KiCad** - For PCB design and schematic editing
 - **SolidWorks** (or compatible CAD software) - For mechanical design files
-- **Arduino IDE** or **PlatformIO** - For firmware development
-- **Code editor** (VS Code, etc.) - For software development
+- **Arduino IDE** - For firmware development
+- **Code editor** (VSCode, Cursor, etc.) - For software development
 
 ### Installation
 
@@ -336,14 +336,6 @@ This project is currently in active development as a school final project. The r
 - ✅ SolidWorks mechanical models
 - 🔄 Firmware development (in progress)
 - 🔄 Software development (in progress)
-
-## 📞 Support
-
-If you encounter any issues or have questions:
-
-1. Check the [Issues](https://github.com/yourusername/OpenWatch/issues) page
-2. Create a new issue with detailed description
-3. Contact the project maintainers
 
 ## 📄 License
 
