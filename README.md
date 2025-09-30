@@ -95,24 +95,6 @@ git commit -m "Add your feature description here"
 git push origin feature/your-feature
 ```
 
-### Step 3: Merge Your Work (When Ready)
-```bash
-# 8. Switch back to master
-git checkout master
-
-# 9. Get latest changes
-git pull origin master
-
-# 10. Merge your branch
-git merge feature/your-feature
-
-# 11. Push to master
-git push origin master
-
-# 12. Delete your branch (optional)
-git branch -d feature/your-feature
-```
-
 ## 📝 Essential Commands Cheat Sheet
 
 | What you want to do | Command |
