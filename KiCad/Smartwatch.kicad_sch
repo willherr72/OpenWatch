@@ -7586,6 +7586,12 @@
 		(uuid "152958f6-24af-4844-b3e3-5a5b2f1e6053")
 	)
 	(junction
+		(at 234.95 26.67)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "1e81c86c-0512-4bcc-a928-cdddfb8f2130")
+	)
+	(junction
 		(at 163.83 60.96)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -11017,6 +11023,16 @@
 	)
 	(wire
 		(pts
+			(xy 234.95 26.67) (xy 237.49 26.67)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c9aac58d-295e-46c1-8268-6828eb954780")
+	)
+	(wire
+		(pts
 			(xy 44.45 187.96) (xy 41.91 187.96)
 		)
 		(stroke
@@ -11094,6 +11110,16 @@
 			(type default)
 		)
 		(uuid "cf4f9153-c2eb-4aab-a9b5-a3a51e917ec6")
+	)
+	(wire
+		(pts
+			(xy 234.95 26.67) (xy 234.95 27.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d114ba5c-8afa-4722-9935-353855d7a400")
 	)
 	(wire
 		(pts
@@ -11257,7 +11283,7 @@
 	)
 	(wire
 		(pts
-			(xy 227.33 26.67) (xy 237.49 26.67)
+			(xy 227.33 26.67) (xy 234.95 26.67)
 		)
 		(stroke
 			(width 0)
@@ -19904,6 +19930,75 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:R_Small")
+		(at 234.95 30.48 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "26653879-fdd6-4e96-a472-f71125a7cfeb")
+		(property "Reference" "R16"
+			(at 236.982 29.972 0)
+			(effects
+				(font
+					(size 1.016 1.016)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "10k"
+			(at 236.728 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 234.95 30.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 234.95 30.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor, small symbol"
+			(at 234.95 30.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
+			(uuid "d461c711-cb45-4068-9049-d13ffd11834a")
+		)
+		(pin "1"
+			(uuid "2fd851c0-95da-4fb2-8b4c-841368d0de66")
+		)
+		(instances
+			(project "Smartwatch"
+				(path "/e141b4c9-28fb-4bc3-aace-8a7adb0cdaa6"
+					(reference "R16")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:+3.3V")
 		(at 30.48 43.18 0)
 		(unit 1)
@@ -27766,6 +27861,71 @@
 			(project "Smartwatch"
 				(path "/e141b4c9-28fb-4bc3-aace-8a7adb0cdaa6"
 					(reference "#PWR034")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 234.95 33.02 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "c38ac08c-e631-4e14-ad4d-b6c767f047d8")
+		(property "Reference" "#PWR091"
+			(at 234.95 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 234.95 36.576 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 234.95 33.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 234.95 33.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 234.95 33.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "7a45ef41-c22d-47e5-8f0e-7e9c98e9e6da")
+		)
+		(instances
+			(project "Smartwatch"
+				(path "/e141b4c9-28fb-4bc3-aace-8a7adb0cdaa6"
+					(reference "#PWR091")
 					(unit 1)
 				)
 			)
