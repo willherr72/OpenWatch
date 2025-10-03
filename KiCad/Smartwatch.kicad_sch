@@ -19782,10 +19782,9 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "24db01f1-27f6-41cf-b06d-2da2f5a24bc6")
 		(property "Reference" "SW1"
-			(at 232.41 35.56 0)
+			(at 232.41 38.608 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -19798,6 +19797,7 @@
 				(font
 					(size 1.27 1.27)
 				)
+				(hide yes)
 			)
 		)
 		(property "Footprint" "Usermade:JXTCONN TS-1010-S26"
@@ -25076,8 +25076,8 @@
 				(hide yes)
 			)
 		)
-		(property "Field5" "Order ESP32-S3R8 If Possible"
-			(at 139.7 150.368 0)
+		(property "Field5" "Order ESP32-S3FH4R2 If Possible"
+			(at 140.462 150.368 0)
 			(effects
 				(font
 					(size 0.762 0.762)
@@ -26654,7 +26654,7 @@
 		(dnp no)
 		(uuid "a82e3b8e-8d86-4fe1-98eb-682acbf2d854")
 		(property "Reference" "SW2"
-			(at 233.68 57.15 0)
+			(at 233.68 59.944 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -26675,6 +26675,7 @@
 				(font
 					(size 1.27 1.27)
 				)
+				(hide yes)
 			)
 		)
 		(property "Datasheet" "~"
