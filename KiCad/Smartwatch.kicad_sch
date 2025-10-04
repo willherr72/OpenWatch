@@ -20203,7 +20203,7 @@
 		(dnp no)
 		(uuid "2c627c28-a6eb-4b97-8ae2-ade87920358e")
 		(property "Reference" "Y1"
-			(at 168.148 168.656 0)
+			(at 160.782 168.91 0)
 			(effects
 				(font
 					(size 1.27 1.27)
