@@ -2,7 +2,7 @@
 #include "esp_sleep.h"
 #include "esp_log.h"
 
-SleepManager::SleepManager() : state(SleepState::AWAKE), sleepCountdownStart(0) {
+SleepManager::SleepManager() : state(SleepState::AWAKE) {
 }
 
 void SleepManager::triggerSleep() {
@@ -20,18 +20,6 @@ bool SleepManager::updateCountdown() {
   
   // No countdown - go to sleep immediately
   return true;
-}
-
-unsigned long SleepManager::getRemainingCountdownMs() const {
-  if (state != SleepState::GOING_TO_SLEEP) {
-    return 0;
-  }
-  
-  unsigned long elapsed = millis() - sleepCountdownStart;
-  if (elapsed >= SLEEP_COUNTDOWN_MS) {
-    return 0;
-  }
-  return SLEEP_COUNTDOWN_MS - elapsed;
 }
 
 void SleepManager::goToSleep(Adafruit_SSD1306 &display) {
@@ -75,29 +63,6 @@ void SleepManager::wakeUp() {
 
 SleepState SleepManager::getState() const {
   return state;
-}
-
-void SleepManager::showSleepCountdown(Adafruit_SSD1306 &display, unsigned long remainingMs) {
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
-  display.setTextSize(2);
-  
-  // Show "SLEEP" text
-  display.setCursor(25, 15);
-  display.print(F("SLEEP"));
-  
-  // Show countdown - fix calculation to avoid getting stuck at 1
-  display.setTextSize(3);
-  unsigned long seconds = (remainingMs + 999) / 1000; // Round up properly
-  if (seconds == 0 && remainingMs > 0) {
-    seconds = 1; // Show at least 1 if there's time remaining
-  }
-  display.setCursor(55, 35);
-  display.print(seconds);
-  
-  display.display();
-  
-  Serial.printf("Sleep countdown: %lu ms remaining, showing %lu seconds\n", remainingMs, seconds);
 }
 
 void SleepManager::showWakeMessage(Adafruit_SSD1306 &display) {
