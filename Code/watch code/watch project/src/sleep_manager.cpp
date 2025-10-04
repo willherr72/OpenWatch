@@ -1,0 +1,140 @@
+#include "sleep_manager.h"
+#include "esp_sleep.h"
+#include "esp_log.h"
+
+SleepManager::SleepManager() : state(SleepState::AWAKE), sleepCountdownStart(0) {
+}
+
+void SleepManager::triggerSleep() {
+  if (state == SleepState::AWAKE) {
+    // Go to sleep immediately (no countdown)
+    state = SleepState::GOING_TO_SLEEP;
+    Serial.println(F("Sleep triggered - going to sleep immediately"));
+  }
+}
+
+bool SleepManager::updateCountdown() {
+  if (state != SleepState::GOING_TO_SLEEP) {
+    return false;
+  }
+  
+  // No countdown - go to sleep immediately
+  return true;
+}
+
+unsigned long SleepManager::getRemainingCountdownMs() const {
+  if (state != SleepState::GOING_TO_SLEEP) {
+    return 0;
+  }
+  
+  unsigned long elapsed = millis() - sleepCountdownStart;
+  if (elapsed >= SLEEP_COUNTDOWN_MS) {
+    return 0;
+  }
+  return SLEEP_COUNTDOWN_MS - elapsed;
+}
+
+void SleepManager::goToSleep(Adafruit_SSD1306 &display) {
+  Serial.println(F("Entering light sleep..."));
+  
+  // Power down display before sleep
+  display.clearDisplay();
+  display.display();
+  display.ssd1306_command(SSD1306_DISPLAYOFF);
+  Serial.println(F("Display powered off"));
+  
+  // Configure wake-up sources for light sleep (only GPIO, no timer)
+  esp_sleep_enable_gpio_wakeup();
+  Serial.println(F("GPIO wake-up enabled for light sleep (button only)"));
+  
+  Serial.flush(); // Ensure message is sent before sleep
+  
+  state = SleepState::SLEEPING;
+  
+  // Small delay to ensure any pending operations complete
+  delay(100);
+  
+  // Enter light sleep (only button can wake up)
+  esp_light_sleep_start();
+  
+  // Code execution continues here after wake-up
+  Serial.println(F("Woken up from light sleep!"));
+  
+  // Re-enable display
+  display.ssd1306_command(SSD1306_DISPLAYON);
+  Serial.println(F("Display powered back on"));
+  
+  // Update state
+  state = SleepState::AWAKE;
+}
+
+void SleepManager::wakeUp() {
+  state = SleepState::AWAKE;
+  Serial.println(F("Wake up from sleep"));
+}
+
+SleepState SleepManager::getState() const {
+  return state;
+}
+
+void SleepManager::showSleepCountdown(Adafruit_SSD1306 &display, unsigned long remainingMs) {
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(2);
+  
+  // Show "SLEEP" text
+  display.setCursor(25, 15);
+  display.print(F("SLEEP"));
+  
+  // Show countdown - fix calculation to avoid getting stuck at 1
+  display.setTextSize(3);
+  unsigned long seconds = (remainingMs + 999) / 1000; // Round up properly
+  if (seconds == 0 && remainingMs > 0) {
+    seconds = 1; // Show at least 1 if there's time remaining
+  }
+  display.setCursor(55, 35);
+  display.print(seconds);
+  
+  display.display();
+  
+  Serial.printf("Sleep countdown: %lu ms remaining, showing %lu seconds\n", remainingMs, seconds);
+}
+
+void SleepManager::showWakeMessage(Adafruit_SSD1306 &display) {
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(1);
+  
+  // Center "WAKE UP" message
+  const char* msg = "WAKE UP";
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(msg, 0, 0, &x1, &y1, &w, &h);
+  int16_t x = (128 - w) / 2;
+  int16_t y = (64 - h) / 2;
+  
+  display.setCursor(x, y);
+  display.print(msg);
+  display.display();
+}
+
+bool SleepManager::handleWakeupReason() {
+  esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+  
+  Serial.printf("Wake-up cause: %d\n", wakeup_reason);
+  
+  switch(wakeup_reason) {
+    case ESP_SLEEP_WAKEUP_GPIO:
+      Serial.println(F("Wakeup from GPIO (button press)"));
+      return true;
+    case ESP_SLEEP_WAKEUP_TIMER:
+      Serial.println(F("Wakeup from timer (10 second test wake-up)"));
+      return true;
+    case ESP_SLEEP_WAKEUP_UNDEFINED:
+      Serial.println(F("Wakeup from reset/power on (not from sleep)"));
+      return false;
+    default:
+      Serial.printf("Wakeup from other source: %d\n", wakeup_reason);
+      return false;
+  }
+}
