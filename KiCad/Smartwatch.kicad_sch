@@ -11765,7 +11765,7 @@
 	)
 	(wire
 		(pts
-			(xy 224.79 40.64) (xy 224.79 43.18)
+			(xy 224.79 41.91) (xy 224.79 43.18)
 		)
 		(stroke
 			(width 0)
@@ -21673,11 +21673,7 @@
 		(dnp no)
 		(uuid "50d70c2b-f0cc-4f03-9f95-5392b6067b11")
 		(property "Reference" "R22"
-<<<<<<< HEAD
-			(at 56.134 91.44 90)
-=======
 			(at 71.628 91.44 90)
->>>>>>> 2a128df713024c970cef4c2f7dabe59b309e5f0f
 			(effects
 				(font
 					(size 1.016 1.016)
@@ -21686,11 +21682,7 @@
 			)
 		)
 		(property "Value" "10k"
-<<<<<<< HEAD
-			(at 56.134 93.472 90)
-=======
 			(at 71.628 93.472 90)
->>>>>>> 2a128df713024c970cef4c2f7dabe59b309e5f0f
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -29530,7 +29522,7 @@
 	)
 	(symbol
 		(lib_id "power:+5V")
-		(at 224.79 40.64 0)
+		(at 224.79 41.91 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -29538,7 +29530,7 @@
 		(dnp no)
 		(uuid "eec8822d-3bfd-40cc-98e6-e28d293f0a8f")
 		(property "Reference" "#PWR036"
-			(at 224.79 44.45 0)
+			(at 224.79 45.72 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -29547,7 +29539,7 @@
 			)
 		)
 		(property "Value" "VBAT"
-			(at 224.79 37.084 0)
+			(at 224.79 38.354 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -29555,7 +29547,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 224.79 40.64 0)
+			(at 224.79 41.91 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -29564,7 +29556,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 224.79 40.64 0)
+			(at 224.79 41.91 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -29573,7 +29565,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+5V\""
-			(at 224.79 40.64 0)
+			(at 224.79 41.91 0)
 			(effects
 				(font
 					(size 1.27 1.27)

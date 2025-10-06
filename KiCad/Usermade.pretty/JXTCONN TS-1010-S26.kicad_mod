@@ -56,8 +56,6 @@
 		)
 	)
 	(attr smd)
-<<<<<<< HEAD
-=======
 	(fp_line
 		(start -2 0.4)
 		(end -2 -2.4)
@@ -106,7 +104,6 @@
 		(thermal_bridge_angle 45)
 		(uuid "b5ef6535-da24-45cd-b263-b42737d0f01c")
 	)
->>>>>>> 2a128df713024c970cef4c2f7dabe59b309e5f0f
 	(pad "1" smd roundrect
 		(at 0 0 90)
 		(size 1.1 0.6)
@@ -123,22 +120,13 @@
 		(thermal_bridge_angle 45)
 		(uuid "e7cf2238-1ca6-4439-956c-cb030df62d7a")
 	)
-<<<<<<< HEAD
-	(pad "x" smd roundrect
-		(at -0.8 -2)
-=======
 	(pad "2" smd roundrect
 		(at 3.8 -2)
->>>>>>> 2a128df713024c970cef4c2f7dabe59b309e5f0f
 		(size 0.95 1.1)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.15)
 		(thermal_bridge_angle 45)
-<<<<<<< HEAD
-		(uuid "b5ef6535-da24-45cd-b263-b42737d0f01c")
-=======
 		(uuid "614b3690-35fd-4990-8dc1-0f5f0e1c16f7")
->>>>>>> 2a128df713024c970cef4c2f7dabe59b309e5f0f
 	)
 	(pad "x" thru_hole circle
 		(at 0.65 -1.65)
@@ -156,16 +144,5 @@
 		(remove_unused_layers no)
 		(uuid "45c1a72e-f5b4-4e39-b41c-a160c132569d")
 	)
-<<<<<<< HEAD
-	(pad "x" smd roundrect
-		(at 3.8 -2)
-		(size 0.95 1.1)
-		(layers "F.Cu" "F.Mask" "F.Paste")
-		(roundrect_rratio 0.15)
-		(thermal_bridge_angle 45)
-		(uuid "614b3690-35fd-4990-8dc1-0f5f0e1c16f7")
-	)
-=======
->>>>>>> 2a128df713024c970cef4c2f7dabe59b309e5f0f
 	(embedded_fonts no)
 )
