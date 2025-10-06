@@ -11765,7 +11765,7 @@
 	)
 	(wire
 		(pts
-			(xy 224.79 41.91) (xy 224.79 43.18)
+			(xy 224.79 40.64) (xy 224.79 43.18)
 		)
 		(stroke
 			(width 0)
@@ -29522,7 +29522,7 @@
 	)
 	(symbol
 		(lib_id "power:+5V")
-		(at 224.79 41.91 0)
+		(at 224.79 40.64 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -29530,7 +29530,7 @@
 		(dnp no)
 		(uuid "eec8822d-3bfd-40cc-98e6-e28d293f0a8f")
 		(property "Reference" "#PWR036"
-			(at 224.79 45.72 0)
+			(at 224.79 44.45 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -29539,7 +29539,7 @@
 			)
 		)
 		(property "Value" "VBAT"
-			(at 224.79 38.354 0)
+			(at 224.79 37.084 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -29547,7 +29547,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 224.79 41.91 0)
+			(at 224.79 40.64 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -29556,7 +29556,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 224.79 41.91 0)
+			(at 224.79 40.64 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -29565,7 +29565,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+5V\""
-			(at 224.79 41.91 0)
+			(at 224.79 40.64 0)
 			(effects
 				(font
 					(size 1.27 1.27)
