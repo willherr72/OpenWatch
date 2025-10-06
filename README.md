@@ -145,8 +145,8 @@ This project is currently in active development as a school final project. The r
 - ✅ Basic project structure
 - ✅ KiCad PCB design files
 - ✅ SolidWorks mechanical models
-- 🔄 Firmware development (in progress)
-- 🔄 Software development (in progress)
+- 🔄 Firmware development 
+- 🔄 Software development 
 
 ## 📄 License
 
