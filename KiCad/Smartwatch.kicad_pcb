@@ -22695,6 +22695,109 @@
 			(justify left bottom)
 		)
 	)
+	(gr_text "Jodelys Dejesus"
+		(at 137.403117 109.073046 0)
+		(layer "B.SilkS")
+		(uuid "0f53a3e0-70d3-48c9-9d98-792a0f0cd286")
+		(effects
+			(font
+				(size 0.5 0.5)
+				(thickness 0.125)
+				(bold yes)
+			)
+			(justify left bottom mirror)
+		)
+	)
+	(gr_text "Matthew Wilson"
+		(at 138.177414 105.113902 0)
+		(layer "B.SilkS")
+		(uuid "17ee084c-226a-4ffc-b25d-87c55b92bd30")
+		(effects
+			(font
+				(size 0.5 0.5)
+				(thickness 0.125)
+			)
+			(justify left bottom mirror)
+		)
+	)
+	(gr_text "Thabothan Varatharasa"
+		(at 138.089758 108.240311 0)
+		(layer "B.SilkS")
+		(uuid "3346f409-dc30-4a27-88d3-8a59a2d389e9")
+		(effects
+			(font
+				(size 0.5 0.5)
+				(thickness 0.125)
+				(bold yes)
+			)
+			(justify left bottom mirror)
+		)
+	)
+	(gr_text "Rebecca Duran"
+		(at 137.373898 109.891172 0)
+		(layer "B.SilkS")
+		(uuid "33622929-a394-4a96-9420-40f29a1b147e")
+		(effects
+			(font
+				(size 0.5 0.5)
+				(thickness 0.125)
+				(bold yes)
+			)
+			(justify left bottom mirror)
+		)
+	)
+	(gr_text "Laura Tolley"
+		(at 138.031321 106.633278 0)
+		(layer "B.SilkS")
+		(uuid "7f2d90c1-0643-4433-b922-0f4edcb7a537")
+		(effects
+			(font
+				(size 0.5 0.5)
+				(thickness 0.125)
+				(bold yes)
+			)
+			(justify left bottom mirror)
+		)
+	)
+	(gr_text "William Herr"
+		(at 138.206633 104.324995 0)
+		(layer "B.SilkS")
+		(uuid "9105e52c-89a1-4581-ad8f-d23650f101e8")
+		(effects
+			(font
+				(size 0.5 0.5)
+				(thickness 0.1)
+				(bold yes)
+			)
+			(justify left bottom mirror)
+		)
+	)
+	(gr_text "Argel Romano"
+		(at 138.089758 107.422185 0)
+		(layer "B.SilkS")
+		(uuid "eb96f3df-e362-409f-a313-6147662a0a4f")
+		(effects
+			(font
+				(size 0.5 0.5)
+				(thickness 0.125)
+				(bold yes)
+			)
+			(justify left bottom mirror)
+		)
+	)
+	(gr_text "Jeffery Wong "
+		(at 138.016711 105.858981 0)
+		(layer "B.SilkS")
+		(uuid "ff3771e2-e4df-4191-bb1e-4b6633d058ac")
+		(effects
+			(font
+				(size 0.5 0.5)
+				(thickness 0.125)
+				(bold yes)
+			)
+			(justify left bottom mirror)
+		)
+	)
 	(segment
 		(start 148.122574 85.803259)
 		(end 148.122574 85.710012)
