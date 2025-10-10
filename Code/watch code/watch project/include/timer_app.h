@@ -1,6 +1,9 @@
 #pragma once
-#include <Adafruit_SSD1306.h>
+#include "display_adapter.h"
 #include <Arduino.h>
+
+// Forward declaration
+class AppManager;
 
 // Simple timer app with preset selection and countdown.
 // Interaction model (using existing buttons):
@@ -30,8 +33,12 @@ void timerAppHandlePrimaryShort();
 void timerAppHandlePrimaryLong();
 void timerAppHandleMenuLong();
 void timerAppUpdate();
-void drawTimer(Adafruit_SSD1306 &display);
+void drawTimer(Gc9Display &display);
+void resetTimerDisplay(Gc9Display &display);
 // Query helpers for overlay
 bool timerIsRunning();
 bool timerIsDone();
 uint32_t timerRemainingSeconds();
+
+// Register this app with the app manager
+void registerTimerApp(AppManager& appManager);

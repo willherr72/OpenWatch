@@ -24,7 +24,8 @@ void initWiFi(long gmtOffsetSec, int daylightOffsetSec, unsigned long &lastNtpAt
   if (WiFi.status() == WL_CONNECTED) {
     Serial.print(F("WiFi connected, IP: ")); 
     Serial.println(WiFi.localIP());
-    configTime(gmtOffsetSec, daylightOffsetSec, "pool.ntp.org", "time.nist.gov");
+    // Configure NTP for UTC time - we'll handle timezone conversion manually
+    configTime(0, 0, "pool.ntp.org", "time.nist.gov");
     lastNtpAttempt = millis();
   } else {
     Serial.println(F("WiFi connect failed."));
@@ -49,7 +50,8 @@ void handleNTPRetry(unsigned long now, bool timeSynced, long gmtOffsetSec, int d
   // Retry NTP configuration if still not synced
   if (!timeSynced && WiFi.status() == WL_CONNECTED && (now - lastNtpAttempt > NTP_RETRY_INTERVAL)) {
     Serial.println(F("Retry NTP config."));
-    configTime(gmtOffsetSec, daylightOffsetSec, "pool.ntp.org", "time.google.com");
+    // Configure for UTC time - timezone handled manually in display code
+    configTime(0, 0, "pool.ntp.org", "time.google.com");
     lastNtpAttempt = now;
   }
 }

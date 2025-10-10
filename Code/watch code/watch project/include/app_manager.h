@@ -1,16 +1,21 @@
 #pragma once
 #include <Arduino.h>
-#include <Adafruit_SSD1306.h>
-#include <vector>
-#include <functional>
+#include "display_adapter.h"
 
-enum class AppId : uint8_t {
-  CLOCK = 0,
-  FITNESS,    // fitness app
-  TIMER,      // countdown timer app
-  STOCKS,     // stock prices app
-  WEATHER,    // weather app
-  COUNT
+// Forward declarations
+typedef void (*AppDrawFunction)(Gc9Display &display);
+typedef void (*AppUpdateFunction)();
+typedef void (*AppButtonHandler)(int buttonEvent);
+typedef void (*AppResetFunction)(Gc9Display &display);
+
+// App structure for dynamic registration
+struct App {
+  const char* name;
+  AppDrawFunction drawFunction;
+  AppUpdateFunction updateFunction;  // Optional - can be nullptr
+  AppButtonHandler buttonHandler;    // Optional - can be nullptr
+  bool isSpecial;                   // true for clock app which has special handling
+  AppResetFunction resetFunction;   // Optional - reset hook when app becomes active
 };
 
 class AppManager {
@@ -22,14 +27,32 @@ public:
   void exitMenu();
   void enterMenu();
   bool isMenuActive() const { return inMenu; }
-  AppId currentApp() const { return activeApp; }
-  void draw(Adafruit_SSD1306 &display);
-  void drawActiveApp(Adafruit_SSD1306 &display, bool &timeSynced, void (*drawClock)(Adafruit_SSD1306&, bool&));
+  bool consumeMenuClosedFlag();
+  void markMenuDirty();
+  int currentAppIndex() const { return activeAppIndex; }
+  const App* currentApp() const;
+  void draw(Gc9Display &display);
+  void drawActiveApp(Gc9Display &display, bool &timeSynced, void (*drawClock)(Gc9Display&, bool&));
+  
+  // Dynamic app registration
+  bool registerApp(const App& app);
+  int getAppCount() const { return appCount; }
+  const App* getApp(int index) const;
+  
   // Force return to clock app and exit any active menu
   void resetToClock();
+  
 private:
+  static const int MAX_APPS = 10;  // Maximum number of apps
+  App apps[MAX_APPS];
+  int appCount;
+  
   bool inMenu;
-  AppId activeApp;   // currently running app
-  int menuIndex;     // index while navigating menu
-  const char* getAppName(AppId id) const;
+  bool menuJustClosed;
+  bool menuDirty;
+  int lastRenderedMenuIndex;
+  int lastRenderedAppCount;
+  int lastDrawnAppIndex;
+  int activeAppIndex;   // currently running app index
+  int menuIndex;        // index while navigating menu
 };

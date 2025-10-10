@@ -1,7 +1,8 @@
 #pragma once
 #include <Arduino.h>
-#include <Adafruit_SSD1306.h>
+#include "display_adapter.h"
 
 bool fetchLocalTime(struct tm &out, uint32_t timeoutMs = 1500);
-void drawCurrentTime(Adafruit_SSD1306 &display, bool &timeSynced);
-void showMessage(Adafruit_SSD1306 &display, const __FlashStringHelper* msg);
+void drawCurrentTime(Gc9Display &display, bool &timeSynced);
+void resetClockDisplay(Gc9Display &display);
+void showMessage(Gc9Display &display, const __FlashStringHelper* msg);

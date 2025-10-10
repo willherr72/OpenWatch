@@ -22,14 +22,14 @@ bool SleepManager::updateCountdown() {
   return true;
 }
 
-void SleepManager::goToSleep(Adafruit_SSD1306 &display) {
+void SleepManager::goToSleep(Gc9Display &display) {
   Serial.println(F("Entering light sleep..."));
   
   // Power down display before sleep
   display.clearDisplay();
   display.display();
-  display.ssd1306_command(SSD1306_DISPLAYOFF);
-  Serial.println(F("Display powered off"));
+  // For GC9A01, there's no SSD1306 command; power control could be via GPIO if wired
+  Serial.println(F("Display prepared for sleep"));
   
   // Configure wake-up sources for light sleep (only GPIO, no timer)
   esp_sleep_enable_gpio_wakeup();
@@ -49,8 +49,8 @@ void SleepManager::goToSleep(Adafruit_SSD1306 &display) {
   Serial.println(F("Woken up from light sleep!"));
   
   // Re-enable display
-  display.ssd1306_command(SSD1306_DISPLAYON);
-  Serial.println(F("Display powered back on"));
+  // Wake display if needed (for GC9A01 this may be automatic or via reset)
+  Serial.println(F("Display resumed after sleep"));
   
   // Update state
   state = SleepState::AWAKE;
@@ -65,9 +65,9 @@ SleepState SleepManager::getState() const {
   return state;
 }
 
-void SleepManager::showWakeMessage(Adafruit_SSD1306 &display) {
+void SleepManager::showWakeMessage(Gc9Display &display) {
   display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
+  display.setTextColor(COLOR_WHITE);
   display.setTextSize(1);
   
   // Center "WAKE UP" message
@@ -75,8 +75,8 @@ void SleepManager::showWakeMessage(Adafruit_SSD1306 &display) {
   int16_t x1, y1;
   uint16_t w, h;
   display.getTextBounds(msg, 0, 0, &x1, &y1, &w, &h);
-  int16_t x = (128 - w) / 2;
-  int16_t y = (64 - h) / 2;
+  int16_t x = (display.width() - w) / 2;
+  int16_t y = (display.height() - h) / 2;
   
   display.setCursor(x, y);
   display.print(msg);

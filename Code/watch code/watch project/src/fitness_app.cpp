@@ -1,18 +1,43 @@
 #include "fitness_app.h"
+#include "app_manager.h"
 
-void drawFitness(Adafruit_SSD1306 &display) {
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
-  // Choose text size so that word fits nicely; center it.
-  // We'll attempt size 2; width each character roughly 12px including spacing when size=2.
+namespace {
+bool fitnessNeedsRedraw = true;
+}
+
+void resetFitnessDisplay(Gc9Display &display) {
+  fitnessNeedsRedraw = true;
+  display.fillScreen(COLOR_BLACK);
+}
+
+void drawFitness(Gc9Display &display) {
+  if (!fitnessNeedsRedraw) {
+    return;
+  }
+
+  display.fillScreen(COLOR_BLACK);
+  display.setTextColor(COLOR_WHITE);
   display.setTextSize(2);
   const char *label = "Fitness";
-  // Basic centering:
   int16_t x1, y1; uint16_t w, h;
   display.getTextBounds(label, 0, 0, &x1, &y1, &w, &h);
-  int16_t x = (display.width() - w) / 2;
-  int16_t y = (display.height() - h) / 2;
+  int16_t x = (display.width() - static_cast<int16_t>(w)) / 2;
+  int16_t y = (display.height() - static_cast<int16_t>(h)) / 2;
   display.setCursor(x, y);
   display.print(label);
   display.display();
+
+  fitnessNeedsRedraw = false;
+}
+
+void registerFitnessApp(AppManager& appManager) {
+  App fitnessApp = {
+    "Fitness",      // name
+    drawFitness,    // drawFunction
+    nullptr,        // updateFunction (not needed)
+    nullptr,        // buttonHandler (not needed)
+    false           // isSpecial (not the clock app)
+  };
+  
+  appManager.registerApp(fitnessApp);
 }
