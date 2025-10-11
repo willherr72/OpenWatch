@@ -1,0 +1,19 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "PlatformIO Upload",
+			"type": "shell",
+			"command": "C:\\Users\\jeffr\\.platformio\\penv\\Scripts\\platformio.exe",
+			"args": [
+				"run",
+				"--target",
+				"upload",
+				"--environment",
+				"esp32c3usbotg"
+			],
+			"isBackground": false,
+			"group": "build"
+		}
+	]
+}

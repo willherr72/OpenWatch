@@ -1,0 +1,129 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "PlatformIO Build",
+			"type": "shell",
+			"command": "C:\\Users\\jeffr\\.platformio\\penv\\Scripts\\platformio.exe",
+			"args": [
+				"run",
+				"--environment",
+				"esp32c3usbotg"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "PlatformIO Build",
+			"type": "shell",
+			"command": "C:\\Users\\jeffr\\.platformio\\penv\\Scripts\\platformio.exe",
+			"args": [
+				"run",
+				"--environment",
+				"esp32c3usbotg"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "PlatformIO Upload",
+			"type": "shell",
+			"command": "C:\\Users\\jeffr\\.platformio\\penv\\Scripts\\platformio.exe",
+			"args": [
+				"run",
+				"--target",
+				"upload",
+				"--environment",
+				"esp32c3usbotg"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "PlatformIO Build",
+			"type": "shell",
+			"command": "C:\\Users\\jeffr\\.platformio\\penv\\Scripts\\platformio.exe",
+			"args": [
+				"run",
+				"--environment",
+				"esp32c3usbotg"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "PlatformIO Upload",
+			"type": "shell",
+			"command": "C:\\Users\\jeffr\\.platformio\\penv\\Scripts\\platformio.exe",
+			"args": [
+				"run",
+				"--target",
+				"upload",
+				"--environment",
+				"esp32c3usbotg"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "PlatformIO Upload",
+			"type": "shell",
+			"command": "C:\\Users\\jeffr\\.platformio\\penv\\Scripts\\platformio.exe",
+			"args": [
+				"run",
+				"--target",
+				"upload",
+				"--environment",
+				"esp32c3usbotg"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "PlatformIO Upload",
+			"type": "shell",
+			"command": "C:\\Users\\jeffr\\.platformio\\penv\\Scripts\\platformio.exe",
+			"args": [
+				"run",
+				"--target",
+				"upload",
+				"--environment",
+				"esp32c3usbotg"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "PlatformIO Upload Fixed",
+			"type": "shell",
+			"command": "C:\\Users\\jeffr\\.platformio\\penv\\Scripts\\platformio.exe",
+			"args": [
+				"run",
+				"--target",
+				"upload",
+				"--environment",
+				"esp32c3usbotg"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build esp32s3 (Arduino)",
+			"type": "shell",
+			"command": "pio run -e esp32s3",
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build esp32c3 (Arduino_GFX)",
+			"type": "shell",
+			"command": "C:\\Users\\jeffr\\.platformio\\penv\\Scripts\\platformio.exe run --environment esp32c3",
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build"
+		}
+	]
+}

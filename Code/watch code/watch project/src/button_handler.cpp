@@ -53,7 +53,7 @@ bool ButtonHandler::isButtonPressed() const {
 }
 
 void ButtonHandler::enableWakeup() {
-  // ESP32-C3 GPIO wake-up configuration for light sleep
+  // ESP32 (C3/C6) GPIO wake-up configuration for light sleep
   Serial.printf("Configuring light sleep wake-up on GPIO %d\n", pin);
   
   // Configure GPIO for wake-up (simpler config for light sleep)

@@ -1,10 +1,13 @@
 #pragma once
-#include <Adafruit_SSD1306.h>
+#include "display_adapter.h"
 #include <Arduino.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
+
+// Forward declaration
+class AppManager;
 
 // Weather data structure
 struct WeatherData {
@@ -37,4 +40,8 @@ void weatherUpdate();
 bool fetchWeatherData();
 
 // Display function
-void drawWeather(Adafruit_SSD1306 &display);
+void drawWeather(Gc9Display &display);
+void resetWeatherDisplay();
+
+// Register this app with the app manager
+void registerWeatherApp(AppManager& appManager);
