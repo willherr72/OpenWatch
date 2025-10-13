@@ -1,0 +1,285 @@
+#include "touch_input.h"
+#include <Wire.h>
+#include "CST816S.h"
+
+#ifndef TOUCH_SDA_PIN
+#define TOUCH_SDA_PIN SDA
+#endif
+
+#ifndef TOUCH_SCL_PIN
+#define TOUCH_SCL_PIN SCL
+#endif
+
+#ifndef TOUCH_INT_PIN
+#define TOUCH_INT_PIN -1
+#endif
+
+#ifndef TOUCH_RST_PIN
+#define TOUCH_RST_PIN -1
+#endif
+
+#ifndef TOUCH_I2C_ADDRESS
+#ifdef TOUCH_I2C_ADDR
+#define TOUCH_I2C_ADDRESS TOUCH_I2C_ADDR
+#else
+#define TOUCH_I2C_ADDRESS 0x15
+#endif
+#endif
+
+#ifndef TOUCH_RAW_MIN_X
+#define TOUCH_RAW_MIN_X 0
+#endif
+#ifndef TOUCH_RAW_MAX_X
+#define TOUCH_RAW_MAX_X 4095
+#endif
+#ifndef TOUCH_RAW_MIN_Y
+#define TOUCH_RAW_MIN_Y 0
+#endif
+#ifndef TOUCH_RAW_MAX_Y
+#define TOUCH_RAW_MAX_Y 4095
+#endif
+#ifndef TOUCH_INVERT_X
+#define TOUCH_INVERT_X 0
+#endif
+#ifndef TOUCH_INVERT_Y
+#define TOUCH_INVERT_Y 0
+#endif
+#ifndef TOUCH_SWAP_XY
+#define TOUCH_SWAP_XY 0
+#endif
+
+namespace {
+CST816SDriver touchDriver;
+bool lastDeliveredTouch = false;
+constexpr uint16_t kTouchMappedMax = 239;
+uint16_t rawMinX = TOUCH_RAW_MIN_X;
+uint16_t rawMaxX = TOUCH_RAW_MAX_X;
+uint16_t rawMinY = TOUCH_RAW_MIN_Y;
+uint16_t rawMaxY = TOUCH_RAW_MAX_Y;
+bool invertAxisX = TOUCH_INVERT_X != 0;
+bool invertAxisY = TOUCH_INVERT_Y != 0;
+bool swapAxes = TOUCH_SWAP_XY != 0;
+unsigned long inputReadyTimeMs = 0;
+
+struct SampleHistory {
+  static constexpr size_t kMaxSamples = 4;
+  uint16_t xs[kMaxSamples];
+  uint16_t ys[kMaxSamples];
+  size_t count = 0;
+  size_t index = 0;
+
+  void reset() {
+    count = 0;
+    index = 0;
+  }
+
+  void add(uint16_t x, uint16_t y) {
+    xs[index] = x;
+    ys[index] = y;
+    index = (index + 1) % kMaxSamples;
+    if (count < kMaxSamples) {
+      ++count;
+    }
+  }
+
+  void average(uint16_t &xOut, uint16_t &yOut) const {
+    if (count == 0) {
+      xOut = 0;
+      yOut = 0;
+      return;
+    }
+    uint32_t sumX = 0;
+    uint32_t sumY = 0;
+    for (size_t i = 0; i < count; ++i) {
+      sumX += xs[i];
+      sumY += ys[i];
+    }
+    xOut = static_cast<uint16_t>(sumX / count);
+    yOut = static_cast<uint16_t>(sumY / count);
+  }
+} sampleHistory;
+const uint8_t candidateAddresses[] = {
+  static_cast<uint8_t>(TOUCH_I2C_ADDRESS),
+  0x15,
+  0x5D,
+  0x2A,
+  0x38
+};
+
+void mapToDisplay(uint16_t rawX, uint16_t rawY, uint16_t &mappedX, uint16_t &mappedY) {
+  auto clampRaw = [](uint16_t value, uint16_t minVal, uint16_t maxVal) -> uint16_t {
+    if (maxVal <= minVal) {
+      return minVal;
+    }
+    if (value < minVal) return minVal;
+    if (value > maxVal) return maxVal;
+    return value;
+  };
+
+  auto mapAxis = [](uint16_t value, uint16_t minVal, uint16_t maxVal) -> uint16_t {
+    if (maxVal <= minVal) {
+      return 0;
+    }
+    uint32_t span = static_cast<uint32_t>(maxVal - minVal);
+    uint32_t delta = static_cast<uint32_t>(value - minVal);
+    return static_cast<uint16_t>((delta * kTouchMappedMax) / span);
+  };
+
+  uint16_t rawForX = swapAxes ? rawY : rawX;
+  uint16_t rawForY = swapAxes ? rawX : rawY;
+
+  rawForX = clampRaw(rawForX, rawMinX, rawMaxX);
+  rawForY = clampRaw(rawForY, rawMinY, rawMaxY);
+
+  uint16_t baseX = mapAxis(rawForX, rawMinX, rawMaxX);
+  uint16_t baseY = mapAxis(rawForY, rawMinY, rawMaxY);
+
+  if (invertAxisX) {
+    baseX = kTouchMappedMax - baseX;
+  }
+  if (invertAxisY) {
+    baseY = kTouchMappedMax - baseY;
+  }
+
+  mappedX = baseX;
+  mappedY = baseY;
+}
+}
+
+void touchInit() {
+  Serial.println("Initializing CST816T touch controller...");
+  
+  // Use MIXED mode to enable both touch coordinates and gestures (including double-click)
+  if (touchDriver.begin(Wire, TOUCH_SDA_PIN, TOUCH_SCL_PIN, TOUCH_RST_PIN, TOUCH_INT_PIN, CST816_MODE_MIXED)) {
+    Serial.printf("CST816T initialized at address 0x%02X in MIXED mode\n", touchDriver.activeAddress());
+    inputReadyTimeMs = millis() + 80; // Warm-up delay
+  } else {
+    Serial.println("CST816T init FAILED");
+  }
+}
+
+bool touchRead(TouchPoint &point) {
+  static unsigned long lastProbeMs = 0;
+  static unsigned long lastDebugMs = 0;
+  constexpr unsigned long kPollIntervalMs = 30;
+  unsigned long now = millis();
+  
+  // Initialize point
+  point.x = 0;
+  point.y = 0;
+  point.rawX = 0;
+  point.rawY = 0;
+  point.gesture = TouchGesture::NONE;
+  point.touching = false;
+  
+  // Debug logging every 5 seconds when no touch
+  if (now - lastDebugMs > 5000) {
+    Serial.printf("Touch: ready=%d, warmup=%d\n", touchDriver.isReady(), now >= inputReadyTimeMs);
+    lastDebugMs = now;
+  }
+  
+  if (now < inputReadyTimeMs) {
+    lastDeliveredTouch = false;
+    return false;
+  }
+  
+  if (!touchDriver.isReady()) {
+    Serial.println("Touch: Driver not ready!");
+    lastDeliveredTouch = false;
+    return false;
+  }
+  
+  if (!touchDriver.dataReady()) {
+    if (now - lastProbeMs < kPollIntervalMs) {
+      lastDeliveredTouch = false;
+      return false;
+    }
+  }
+  lastProbeMs = now;
+  
+  // Read touch data with gesture support
+  CST816SRawPoint rawPoint;
+  if (!touchDriver.readTouch(rawPoint)) {
+    lastDeliveredTouch = false;
+    sampleHistory.reset();
+    return false;
+  }
+
+  // If not touching, clear state and return false
+  if (!rawPoint.touching) {
+    lastDeliveredTouch = false;
+    sampleHistory.reset();
+    return false;
+  }
+
+  // For menu navigation, we want to allow continuous touch reading
+  // Only filter out repeated touches if they're at the exact same position
+  static uint16_t lastRawX = 0;
+  static uint16_t lastRawY = 0;
+  
+  // If this is a repeated touch at the same position, skip it
+  if (rawPoint.touching && lastDeliveredTouch) {
+    if (rawPoint.x == lastRawX && rawPoint.y == lastRawY) {
+      return false;  // Same position, don't re-deliver
+    }
+  }
+
+  lastDeliveredTouch = rawPoint.touching;
+  lastRawX = rawPoint.x;
+  lastRawY = rawPoint.y;
+  
+  sampleHistory.add(rawPoint.x, rawPoint.y);
+  uint16_t smoothX = rawPoint.x;
+  uint16_t smoothY = rawPoint.y;
+  sampleHistory.average(smoothX, smoothY);
+
+  uint16_t mappedX = 0;
+  uint16_t mappedY = 0;
+  mapToDisplay(smoothX, smoothY, mappedX, mappedY);
+
+  point.x = mappedX;
+  point.y = mappedY;
+  point.rawX = smoothX;
+  point.rawY = smoothY;
+  point.touching = rawPoint.touching;
+  point.gesture = static_cast<TouchGesture>(rawPoint.gesture);
+  
+  // Debug: log successful touch reads
+  static unsigned long lastTouchDebugMs = 0;
+  if (now - lastTouchDebugMs > 200) {
+    Serial.printf("Touch OK: raw(%u,%u) smooth(%u,%u) mapped(%u,%u) gesture=%u\n",
+                  rawPoint.x, rawPoint.y, smoothX, smoothY, mappedX, mappedY, rawPoint.gesture);
+    lastTouchDebugMs = now;
+  }
+  
+  return true;
+}
+
+void touchResetState() {
+  lastDeliveredTouch = false;
+  sampleHistory.reset();
+  inputReadyTimeMs = millis() + 80;
+  touchDriver.resetState();
+}
+
+void touchSetRawCalibration(uint16_t minX, uint16_t maxX, uint16_t minY, uint16_t maxY,
+                            bool invertX, bool invertY, bool swapXY) {
+  rawMinX = minX;
+  rawMaxX = maxX;
+  rawMinY = minY;
+  rawMaxY = maxY;
+  invertAxisX = invertX;
+  invertAxisY = invertY;
+  swapAxes = swapXY;
+}
+
+void touchGetRawCalibration(uint16_t &minX, uint16_t &maxX, uint16_t &minY, uint16_t &maxY,
+                            bool &invertX, bool &invertY, bool &swapXY) {
+  minX = rawMinX;
+  maxX = rawMaxX;
+  minY = rawMinY;
+  maxY = rawMaxY;
+  invertX = invertAxisX;
+  invertY = invertAxisY;
+  swapXY = swapAxes;
+}

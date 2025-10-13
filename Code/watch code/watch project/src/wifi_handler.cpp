@@ -38,11 +38,32 @@ bool isWiFiConnected() {
 
 void handleWiFiReconnection(unsigned long now, unsigned long &lastWiFiAttempt) {
   // Retry WiFi if disconnected
-  if (WiFi.status() != WL_CONNECTED && (now - lastWiFiAttempt > WIFI_RETRY_INTERVAL)) {
-    lastWiFiAttempt = now;
-    Serial.println(F("Retry WiFi..."));
-    WiFi.disconnect();
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
+  wl_status_t status = WiFi.status();
+  
+  // Only attempt reconnection if not connected and not already connecting
+  if (status != WL_CONNECTED && status != WL_CONNECT_FAILED && status != WL_IDLE_STATUS) {
+    if (now - lastWiFiAttempt > WIFI_RETRY_INTERVAL) {
+      lastWiFiAttempt = now;
+      Serial.printf("Retry WiFi... (status: %d)\n", status);
+      
+      // Properly disconnect before reconnecting
+      WiFi.disconnect(true);  // true = clear WiFi credentials from memory
+      delay(100);  // Give time for disconnect to complete
+      
+      // Reconnect
+      WiFi.mode(WIFI_STA);
+      WiFi.begin(WIFI_SSID, WIFI_PASS);
+    }
+  } else if (status == WL_CONNECT_FAILED) {
+    // If connection failed, wait and reset
+    if (now - lastWiFiAttempt > WIFI_RETRY_INTERVAL) {
+      lastWiFiAttempt = now;
+      Serial.println(F("WiFi connection failed, resetting..."));
+      WiFi.disconnect(true);
+      delay(100);
+      WiFi.mode(WIFI_STA);
+      WiFi.begin(WIFI_SSID, WIFI_PASS);
+    }
   }
 }
 

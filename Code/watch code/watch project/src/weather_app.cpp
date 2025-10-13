@@ -1,6 +1,5 @@
 #include "weather_app.h"
 #include "app_manager.h"
-#include "secrets.h"
 #include <time.h>
 #include <cstring>
 
@@ -25,7 +24,7 @@ WeatherRenderCache renderCache;
 
 void weatherInit() {
   // Initialize weather data - starts invalid until real data is fetched
-  strcpy(gWeatherCtx.weather.location, "Houston, TX");
+  strcpy(gWeatherCtx.weather.location, "Pearland, TX");
   strcpy(gWeatherCtx.weather.description, "Loading...");
   gWeatherCtx.weather.temperature = 0.0;
   gWeatherCtx.weather.highTemp = 0.0;
@@ -36,6 +35,7 @@ void weatherInit() {
   strcpy(gWeatherCtx.weather.windDirection, "");
   gWeatherCtx.weather.valid = false;  // Start invalid - only becomes valid when real data is fetched
   gWeatherCtx.weather.lastUpdate = 0;
+  strcpy(gWeatherCtx.gridpoint, "");
   
   Serial.println("Weather app initialized - waiting for real data");
 }
@@ -77,7 +77,7 @@ void weatherUpdate() {
 }
 
 bool fetchWeatherData() {
-  Serial.println("=== OPENWEATHERMAP FETCH START ===");
+  Serial.println("=== WEATHER.GOV FETCH START ===");
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi not connected - cannot fetch weather data");
     return false;
@@ -87,87 +87,143 @@ bool fetchWeatherData() {
   client.setInsecure(); // For simplicity - in production use proper certificates
   HTTPClient http;
   
-  // OpenWeatherMap Current Weather API
-  String url = "https://api.openweathermap.org/data/2.5/weather?q=";
-  url += OPENWEATHER_CITY;
-  url += "&appid=";
-  url += OPENWEATHER_API_KEY;
-  url += "&units=imperial"; // Fahrenheit temperatures
+  // Step 1: Get gridpoint if we don't have it yet
+  if (strlen(gWeatherCtx.gridpoint) == 0) {
+    // Use ZIP 77584 coordinates (Pearland, TX): 29.5636, -95.2861
+    String pointsUrl = "https://api.weather.gov/points/29.5636,-95.2861";
+    
+    Serial.println("Fetching gridpoint from: " + pointsUrl);
+    
+    http.begin(client, pointsUrl);
+    http.addHeader("User-Agent", "ESP32-Weather-Watch");
+    http.setTimeout(10000);
+    int code = http.GET();
+    
+    Serial.printf("Gridpoint HTTP Response Code: %d\n", code);
+    
+    if (code == 200) {
+      String payload = http.getString();
+      Serial.printf("Gridpoint API Response length: %d bytes\n", payload.length());
+      
+      JsonDocument doc;
+      DeserializationError err = deserializeJson(doc, payload);
+      
+      if (!err) {
+        // Use regular forecast - smaller payload and sufficient for our needs
+        const char* forecastUrl = doc["properties"]["forecast"];
+        if (forecastUrl) {
+          strncpy(gWeatherCtx.gridpoint, forecastUrl, sizeof(gWeatherCtx.gridpoint)-1);
+          gWeatherCtx.gridpoint[sizeof(gWeatherCtx.gridpoint)-1] = '\0';
+          Serial.printf("Got forecast URL: %s\n", gWeatherCtx.gridpoint);
+        } else {
+          Serial.println("Failed to get forecast URL from gridpoint");
+          http.end();
+          Serial.println("=== WEATHER.GOV FETCH END (FAILED - NO FORECAST URL) ===");
+          return false;
+        }
+      } else {
+        Serial.printf("Gridpoint JSON parse error: %s\n", err.c_str());
+        http.end();
+        Serial.println("=== WEATHER.GOV FETCH END (FAILED - GRIDPOINT PARSE ERROR) ===");
+        return false;
+      }
+    } else {
+      Serial.printf("Gridpoint HTTP failure - code: %d\n", code);
+      http.end();
+      Serial.println("=== WEATHER.GOV FETCH END (FAILED - GRIDPOINT HTTP ERROR) ===");
+      return false;
+    }
+    
+    http.end();
+  }
   
-  Serial.printf("URL: %s\n", url.c_str());
-  http.begin(client, url);
+  // Step 2: Fetch forecast data
+  Serial.printf("Fetching forecast from: %s\n", gWeatherCtx.gridpoint);
+  
+  http.begin(client, gWeatherCtx.gridpoint);
   http.addHeader("User-Agent", "ESP32-Weather-Watch");
-  http.setTimeout(10000); // 10 second timeout
-  
-  Serial.println("Sending HTTP GET request to OpenWeatherMap...");
+  http.setTimeout(10000);
   int code = http.GET();
-  Serial.printf("HTTP Response Code: %d\n", code);
+  
+  Serial.printf("Forecast HTTP Response Code: %d\n", code);
   
   if (code == 200) {
     String payload = http.getString();
-    Serial.printf("Weather API Response length: %d bytes\n", payload.length());
-    Serial.printf("First 300 chars: %.300s\n", payload.c_str());
+    Serial.printf("Forecast API Response length: %d bytes\n", payload.length());
     
-    // Parse JSON response
+    // Regular forecast is much smaller (~8KB vs 61KB for hourly)
     JsonDocument doc;
     DeserializationError err = deserializeJson(doc, payload);
     
     if (!err) {
-      Serial.println("=== PARSING OPENWEATHERMAP DATA ===");
+      Serial.println("=== PARSING WEATHER.GOV DATA ===");
       
-      // Extract current temperature
-      if (doc["main"]["temp"].is<float>()) {
-        gWeatherCtx.weather.temperature = doc["main"]["temp"].as<float>();
+      // Extract current/next period from regular forecast
+      JsonArray periods = doc["properties"]["periods"];
+      int periodCount = periods.size();
+      Serial.printf("Got %d forecast periods\n", periodCount);
+      
+      if (periodCount == 0) {
+        Serial.println("No periods in forecast!");
+        http.end();
+        return false;
+      }
+      
+      JsonObject period = periods[0];
+      
+      // Log what period we're getting
+      if (period["name"].is<const char*>()) {
+        Serial.printf("Period name: %s\n", period["name"].as<const char*>());
+      }
+      
+      if (period["temperature"].is<int>()) {
+        gWeatherCtx.weather.temperature = period["temperature"].as<float>();
         Serial.printf("Current temp: %.1fF\n", gWeatherCtx.weather.temperature);
       }
       
-      // Extract weather description
-      if (doc["weather"][0]["description"].is<const char*>()) {
-        String desc = doc["weather"][0]["description"].as<const char*>();
-        // Capitalize first letter
-        if (desc.length() > 0) {
-          desc[0] = toupper(desc[0]);
-        }
+      if (period["shortForecast"].is<const char*>()) {
+        String desc = period["shortForecast"].as<const char*>();
         strncpy(gWeatherCtx.weather.description, desc.c_str(), sizeof(gWeatherCtx.weather.description)-1);
         gWeatherCtx.weather.description[sizeof(gWeatherCtx.weather.description)-1] = '\0';
         Serial.printf("Description: %s\n", gWeatherCtx.weather.description);
       }
       
-      // Extract high/low temperatures (these are min/max for today)
-      if (doc["main"]["temp_max"].is<float>()) {
-        gWeatherCtx.weather.highTemp = doc["main"]["temp_max"].as<float>();
-        Serial.printf("High temp: %.1fF\n", gWeatherCtx.weather.highTemp);
-      } else {
-        gWeatherCtx.weather.highTemp = gWeatherCtx.weather.temperature + 3;
+      // Calculate high/low from available periods (usually day/night pairs)
+      float high = gWeatherCtx.weather.temperature;
+      float low = gWeatherCtx.weather.temperature;
+      
+      // Process first few periods to get today's high/low
+      for (int i = 0; i < periodCount && i < 4; i++) {
+        JsonObject p = periods[i];
+        if (p["temperature"].is<int>()) {
+          float temp = p["temperature"].as<float>();
+          if (temp > high) high = temp;
+          if (temp < low) low = temp;
+        }
       }
       
-      if (doc["main"]["temp_min"].is<float>()) {
-        gWeatherCtx.weather.lowTemp = doc["main"]["temp_min"].as<float>();
-        Serial.printf("Low temp: %.1fF\n", gWeatherCtx.weather.lowTemp);
-      } else {
-        gWeatherCtx.weather.lowTemp = gWeatherCtx.weather.temperature - 3;
+      gWeatherCtx.weather.highTemp = high;
+      gWeatherCtx.weather.lowTemp = low;
+      Serial.printf("High: %.1fF, Low: %.1fF (from %d periods)\n", high, low, periodCount);
+      
+      // NWS forecast API doesn't provide humidity/pressure
+      // These would require the hourly forecast or observation stations
+      gWeatherCtx.weather.humidity = 0;
+      gWeatherCtx.weather.pressure = 0;
+      gWeatherCtx.weather.windSpeed = 0;
+      
+      // Parse wind speed from windSpeed string (e.g., "5 to 10 mph")
+      if (period["windSpeed"].is<const char*>()) {
+        String windStr = period["windSpeed"].as<const char*>();
+        Serial.printf("Wind string: %s\n", windStr.c_str());
+        // Extract first number from string
+        int windVal = windStr.toInt();
+        if (windVal > 0) {
+          gWeatherCtx.weather.windSpeed = windVal;
+        }
       }
       
-      // Extract additional data
-      if (doc["main"]["humidity"].is<int>()) {
-        gWeatherCtx.weather.humidity = doc["main"]["humidity"].as<float>();
-      }
-      
-      if (doc["main"]["pressure"].is<float>()) {
-        gWeatherCtx.weather.pressure = doc["main"]["pressure"].as<float>();
-      }
-      
-      if (doc["wind"]["speed"].is<float>()) {
-        gWeatherCtx.weather.windSpeed = (int)(doc["wind"]["speed"].as<float>() + 0.5); // Round to nearest mph
-      }
-      
-      // Update location to confirm correct city
-      if (doc["name"].is<const char*>()) {
-        String cityName = doc["name"].as<const char*>();
-        strncpy(gWeatherCtx.weather.location, (cityName + ", TX").c_str(), sizeof(gWeatherCtx.weather.location)-1);
-        gWeatherCtx.weather.location[sizeof(gWeatherCtx.weather.location)-1] = '\0';
-        Serial.printf("Location: %s\n", gWeatherCtx.weather.location);
-      }
+      strcpy(gWeatherCtx.weather.location, "Pearland, TX");
       
       gWeatherCtx.weather.lastUpdate = millis();
       gWeatherCtx.weather.valid = true;
@@ -177,17 +233,16 @@ bool fetchWeatherData() {
                     gWeatherCtx.weather.temperature, gWeatherCtx.weather.highTemp, gWeatherCtx.weather.lowTemp);
       Serial.printf("Description: %s\n", gWeatherCtx.weather.description);
       Serial.printf("Location: %s\n", gWeatherCtx.weather.location);
-      Serial.printf("Humidity: %.0f%%, Pressure: %.0fhPa, Wind: %dmph\n", 
-                    gWeatherCtx.weather.humidity, gWeatherCtx.weather.pressure, gWeatherCtx.weather.windSpeed);
+      Serial.printf("Wind: %dmph\n", gWeatherCtx.weather.windSpeed);
       
       http.end();
-      Serial.println("=== OPENWEATHERMAP FETCH END (SUCCESS) ===");
+      Serial.println("=== WEATHER.GOV FETCH END (SUCCESS) ===");
       return true;
     } else {
-      Serial.printf("JSON parse error: %s\n", err.c_str());
+      Serial.printf("Forecast JSON parse error: %s\n", err.c_str());
     }
   } else {
-    Serial.printf("OpenWeatherMap HTTP failure - code: %d\n", code);
+    Serial.printf("Forecast HTTP failure - code: %d\n", code);
     if (code > 0) {
       String errorResponse = http.getString();
       Serial.printf("Error response: %s\n", errorResponse.c_str());
@@ -195,7 +250,7 @@ bool fetchWeatherData() {
   }
   
   http.end();
-  Serial.println("=== OPENWEATHERMAP FETCH END (FAILED) ===");
+  Serial.println("=== WEATHER.GOV FETCH END (FAILED) ===");
   return false;
 }
 

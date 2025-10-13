@@ -1,0 +1,227 @@
+#include "CST816S.h"
+#include <cstring>
+
+namespace {
+constexpr uint8_t kDefaultAddresses[] = {0x15, 0x5D, 0x2A, 0x38};
+constexpr unsigned long kDefaultDetectRetryMs = 2000;
+}
+
+CST816SDriver::CST816SDriver()
+  : wire_(nullptr),
+    sdaPin_(-1),
+    sclPin_(-1),
+    rstPin_(-1),
+    intPin_(-1),
+    activeAddress_(0),
+    i2cReady_(false),
+    loggedFailure_(false),
+    lastTouched_(false),
+    lastDetectAttemptMs_(0),
+    detectRetryIntervalMs_(kDefaultDetectRetryMs),
+  lastResetMs_(0),
+    candidateCount_(0) {
+  memset(candidateAddresses_, 0, sizeof(candidateAddresses_));
+}
+
+bool CST816SDriver::begin(TwoWire &wire, int sdaPin, int sclPin, int rstPin, int intPin,
+                          const uint8_t *addresses, size_t addressCount) {
+  wire_ = &wire;
+  sdaPin_ = sdaPin;
+  sclPin_ = sclPin;
+  rstPin_ = rstPin;
+  intPin_ = intPin;
+
+  candidateCount_ = 0;
+  if (addresses != nullptr && addressCount > 0) {
+    size_t limit = addressCount > MAX_CANDIDATE_COUNT ? MAX_CANDIDATE_COUNT : addressCount;
+    memcpy(candidateAddresses_, addresses, limit);
+    candidateCount_ = limit;
+  } else {
+    candidateCount_ = sizeof(kDefaultAddresses);
+    memcpy(candidateAddresses_, kDefaultAddresses, candidateCount_);
+  }
+
+  if (!wire_) {
+    return false;
+  }
+
+  wire_->begin(sdaPin_, sclPin_);
+  wire_->setClock(100000);
+  wire_->setTimeout(5);
+  i2cReady_ = true;
+  lastResetMs_ = millis();
+
+  if (rstPin_ >= 0) {
+    pinMode(rstPin_, OUTPUT);
+    digitalWrite(rstPin_, LOW);
+    delay(5);
+    digitalWrite(rstPin_, HIGH);
+    delay(5);
+  }
+
+  if (intPin_ >= 0) {
+    pinMode(intPin_, INPUT_PULLUP);
+  }
+
+  lastDetectAttemptMs_ = 0;
+  lastResetMs_ = millis();
+  return detectTouchController();
+}
+
+bool CST816SDriver::detectTouchController() {
+  if (!i2cReady_ || !wire_) {
+    return false;
+  }
+
+  for (size_t i = 0; i < candidateCount_; ++i) {
+    uint8_t address = candidateAddresses_[i];
+    if (address == 0) {
+      continue;
+    }
+    wire_->beginTransmission(address);
+    if (wire_->endTransmission(true) == 0) {
+      activeAddress_ = address;
+      loggedFailure_ = false;
+      Serial.printf("Touch controller detected at 0x%02X\n", address);
+      return true;
+    }
+  }
+
+  activeAddress_ = 0;
+  unsigned long now = millis();
+  if (!loggedFailure_ || now - lastDetectAttemptMs_ > 10000UL) {
+    Serial.println(F("Touch controller not detected on I2C"));
+    loggedFailure_ = true;
+    lastDetectAttemptMs_ = now;
+  }
+  return false;
+}
+
+bool CST816SDriver::readRegisters(uint8_t *buffer, size_t length) {
+  if (!buffer || length == 0) {
+    return false;
+  }
+  if (!wire_ || activeAddress_ == 0) {
+    return false;
+  }
+
+  size_t requested = wire_->requestFrom(activeAddress_, static_cast<uint8_t>(length), true);
+  if (requested != length) {
+    maybeScheduleRediscovery();
+    return false;
+  }
+
+  for (size_t i = 0; i < length; ++i) {
+    if (!wire_->available()) {
+      maybeScheduleRediscovery();
+      return false;
+    }
+    buffer[i] = wire_->read();
+  }
+  return true;
+}
+
+void CST816SDriver::maybeScheduleRediscovery() {
+  activeAddress_ = 0;
+  unsigned long now = millis();
+  if (detectRetryIntervalMs_ > 0) {
+    if (now >= detectRetryIntervalMs_) {
+      lastDetectAttemptMs_ = now - detectRetryIntervalMs_ - 1;
+    } else {
+      lastDetectAttemptMs_ = 0;
+    }
+  } else {
+    lastDetectAttemptMs_ = 0;
+  }
+}
+
+void CST816SDriver::resetBus() {
+  if (!wire_) {
+    return;
+  }
+
+  unsigned long now = millis();
+  if (now - lastResetMs_ < 50) {
+    return;
+  }
+  lastResetMs_ = now;
+
+  Serial.println(F("CST816S: resetting I2C bus"));
+
+  if (rstPin_ >= 0) {
+    pinMode(rstPin_, OUTPUT);
+    digitalWrite(rstPin_, LOW);
+    delay(5);
+    digitalWrite(rstPin_, HIGH);
+    delay(5);
+  }
+
+  wire_->end();
+  delay(5);
+  wire_->begin(sdaPin_, sclPin_);
+  wire_->setClock(100000);
+  wire_->setTimeout(5);
+  i2cReady_ = true;
+  loggedFailure_ = false;
+  maybeScheduleRediscovery();
+}
+
+bool CST816SDriver::readRaw(uint16_t &rawX, uint16_t &rawY, bool &touching) {
+  rawX = 0;
+  rawY = 0;
+  touching = false;
+
+  if (!i2cReady_ || !wire_) {
+    return false;
+  }
+
+  if (activeAddress_ == 0) {
+    unsigned long now = millis();
+    if (now - lastDetectAttemptMs_ > detectRetryIntervalMs_) {
+      lastDetectAttemptMs_ = now;
+      detectTouchController();
+    }
+    return false;
+  }
+
+  wire_->beginTransmission(activeAddress_);
+  wire_->write(0x00);
+  if (wire_->endTransmission(true) != 0) {
+    resetBus();
+    return false;
+  }
+
+  uint8_t data[6] = {0};
+  if (!readRegisters(data, sizeof(data))) {
+    resetBus();
+    return false;
+  }
+
+  uint8_t touchPoints = data[1] & 0x0F;
+  if (touchPoints == 0) {
+    touching = false;
+    lastTouched_ = false;
+    return true;
+  }
+
+  touching = true;
+  rawX = ((static_cast<uint16_t>(data[2] & 0x0F) << 8) | data[3]);
+  rawY = ((static_cast<uint16_t>(data[4] & 0x0F) << 8) | data[5]);
+  if (rawX > 4095) rawX = 4095;
+  if (rawY > 4095) rawY = 4095;
+  lastTouched_ = true;
+  return true;
+}
+
+void CST816SDriver::resetState() {
+  lastTouched_ = false;
+}
+
+bool CST816SDriver::dataReady() const {
+  if (intPin_ < 0) {
+    return true;
+  }
+  int level = digitalRead(intPin_);
+  // Controller drives INT low when new data is available.
+  return level == LOW;
+}

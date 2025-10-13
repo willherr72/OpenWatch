@@ -36,7 +36,8 @@ void registerFitnessApp(AppManager& appManager) {
     drawFitness,    // drawFunction
     nullptr,        // updateFunction (not needed)
     nullptr,        // buttonHandler (not needed)
-    false           // isSpecial (not the clock app)
+    false,          // isSpecial (not the clock app)
+    resetFitnessDisplay // resetFunction
   };
   
   appManager.registerApp(fitnessApp);

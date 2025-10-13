@@ -33,6 +33,10 @@ public:
   const App* currentApp() const;
   void draw(Gc9Display &display);
   void drawActiveApp(Gc9Display &display, bool &timeSynced, void (*drawClock)(Gc9Display&, bool&));
+  bool handleMenuTouch(int16_t x, int16_t y);
+  bool handleMenuGesture(uint8_t gesture);
+  void resetTouchScroll();
+  void setTouchCalibration(int16_t xOffset, int16_t yOffset, float xScale, float yScale);
   
   // Dynamic app registration
   bool registerApp(const App& app);
@@ -46,6 +50,31 @@ private:
   static const int MAX_APPS = 10;  // Maximum number of apps
   App apps[MAX_APPS];
   int appCount;
+
+  struct MenuItemBounds {
+    int16_t x;
+    int16_t y;
+    int16_t w;
+    int16_t h;
+    int16_t centerY;
+    int16_t centerX;
+    int16_t halfW;
+    int16_t halfH;
+  };
+  MenuItemBounds menuItemBounds[MAX_APPS];
+  bool menuBoundsValid;
+  int16_t touchOffsetX;
+  int16_t touchOffsetY;
+  float touchScaleX;
+  float touchScaleY;
+  
+  // Touch scrolling state
+  int16_t lastTouchY;
+  int16_t touchStartY;
+  int scrollStartIndex;
+  bool touchScrollActive;
+  unsigned long touchStartTime;
+  unsigned long lastGestureTime;
   
   bool inMenu;
   bool menuJustClosed;

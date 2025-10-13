@@ -2,9 +2,12 @@
 #include "fitness_app.h"
 #include "timer_app.h"
 #include "weather_app.h"
+#include <climits>
 
 AppManager::AppManager() : appCount(0), inMenu(false), menuJustClosed(false), menuDirty(false),
-  lastRenderedMenuIndex(-1), lastRenderedAppCount(-1), lastDrawnAppIndex(-1), activeAppIndex(0), menuIndex(0) {}
+  menuBoundsValid(false), lastRenderedMenuIndex(-1), lastRenderedAppCount(-1), lastDrawnAppIndex(-1), activeAppIndex(0), menuIndex(0),
+  touchOffsetX(0), touchOffsetY(0), touchScaleX(1.0f), touchScaleY(1.0f),
+  lastTouchY(0), touchStartY(0), scrollStartIndex(0), touchScrollActive(false), touchStartTime(0), lastGestureTime(0) {}
 
 bool AppManager::registerApp(const App& app) {
   if (appCount >= MAX_APPS) {
@@ -21,6 +24,7 @@ bool AppManager::registerApp(const App& app) {
     menuIndex = activeAppIndex;
   }
   
+  menuBoundsValid = false;
   return true;
 }
 
@@ -42,11 +46,18 @@ void AppManager::enterMenu() {
   menuDirty = true;
   lastRenderedMenuIndex = -1;
   lastRenderedAppCount = -1;
+  
+  // Reset touch scroll state
+  touchScrollActive = false;
+  lastTouchY = 0;
+  touchStartY = 0;
+  scrollStartIndex = menuIndex;
 }
 
 void AppManager::exitMenu() {
   inMenu = false;
   menuJustClosed = true;
+  menuBoundsValid = false;
 }
 
 void AppManager::next() {
@@ -67,6 +78,7 @@ void AppManager::select() {
   inMenu = false; // leave menu on selection
   menuJustClosed = true;
   lastDrawnAppIndex = -1;
+  menuBoundsValid = false;
 }
 
 bool AppManager::consumeMenuClosedFlag() {
@@ -96,6 +108,7 @@ void AppManager::draw(Gc9Display &display) {
     display.setCursor(x, y);
     display.print(msg);
     display.display();
+    menuBoundsValid = false;
     return;
   }
 
@@ -131,7 +144,7 @@ void AppManager::draw(Gc9Display &display) {
 
   for (int i = 0; i < appCount; ++i) {
     const char *name = apps[i].name;
-    display.setTextSize(2);
+    display.setTextSize(3);
     int16_t x1, y1; uint16_t w, h;
     display.getTextBounds(name, 0, 0, &x1, &y1, &w, &h);
 
@@ -139,8 +152,8 @@ void AppManager::draw(Gc9Display &display) {
     int16_t textX = (display.width() - static_cast<int16_t>(w)) / 2;
     if (textX < 0) textX = 0;
 
-    int16_t rectPaddingX = 18;
-    int16_t rectPaddingY = 10;
+    int16_t rectPaddingX = 24;
+    int16_t rectPaddingY = 18;
     int16_t rectX = textX - rectPaddingX;
     int16_t rectY = baseline + y1 - rectPaddingY / 2;
     int16_t rectW = static_cast<int16_t>(w) + rectPaddingX * 2;
@@ -172,11 +185,157 @@ void AppManager::draw(Gc9Display &display) {
 
     display.setCursor(textX, baseline);
     display.print(name);
+
+    int16_t centerX = rectX + rectW / 2;
+    int16_t centerY = baseline - static_cast<int16_t>(h) / 2;
+    int16_t measuredHalfW = rectW / 2;
+    int16_t measuredHalfH = rectH / 2;
+    int16_t expandedHalfW = measuredHalfW + 48;
+    if (expandedHalfW < 70) {
+      expandedHalfW = 70;
+    }
+    int16_t expandedHalfH = measuredHalfH + lineSpacing / 2;
+    if (expandedHalfH < 42) {
+      expandedHalfH = 42;
+    }
+
+    menuItemBounds[i] = {
+      static_cast<int16_t>(rectX),
+      static_cast<int16_t>(rectY),
+      static_cast<int16_t>(rectW),
+      static_cast<int16_t>(rectH),
+      centerY,
+      centerX,
+      expandedHalfW,
+      expandedHalfH
+    };
   }
   display.display();
   menuDirty = false;
   lastRenderedMenuIndex = menuIndex;
   lastRenderedAppCount = appCount;
+  menuBoundsValid = true;
+}
+
+bool AppManager::handleMenuTouch(int16_t x, int16_t y) {
+  if (!inMenu || !menuBoundsValid) {
+    return false;
+  }
+
+  float adjustedX = (static_cast<float>(x) + touchOffsetX) * touchScaleX;
+  float adjustedY = (static_cast<float>(y) + touchOffsetY) * touchScaleY;
+  int16_t ix = static_cast<int16_t>(adjustedX + 0.5f);
+  int16_t iy = static_cast<int16_t>(adjustedY + 0.5f);
+
+  // Find the closest app based primarily on Y-position (vertical distance)
+  // This prevents jumping between apps when sliding vertically
+  int closestIndex = -1;
+  int16_t closestYDistance = 9999;
+  
+  for (int i = 0; i < appCount; i++) {
+    const MenuItemBounds &bounds = menuItemBounds[i];
+    
+    // Calculate Y distance from touch to app center
+    int16_t dy = abs(iy - bounds.centerY);
+    
+    // Check if touch is within reasonable X bounds (horizontal range)
+    int16_t dx = abs(ix - bounds.centerX);
+    if (dx > bounds.w) {
+      continue;  // Touch is too far horizontally, skip this app
+    }
+    
+    // Find the app with the smallest Y distance
+    if (dy < closestYDistance) {
+      closestYDistance = dy;
+      closestIndex = i;
+    }
+  }
+  
+  // Update highlighted app if we found one
+  // Use a reasonable Y threshold to avoid selecting apps that are too far away
+  const int16_t MAX_Y_DISTANCE = 36;  // Half of line spacing
+  
+  if (closestIndex >= 0 && closestYDistance < MAX_Y_DISTANCE) {
+    if (menuIndex != closestIndex) {
+      menuIndex = closestIndex;
+      menuDirty = true;
+      Serial.printf("Touch highlight app %d (%s) - Y-dist=%d\n", 
+                    menuIndex, apps[menuIndex].name, closestYDistance);
+      return true;  // Menu changed, needs redraw
+    }
+  }
+  
+  return false;  // No change
+}
+
+bool AppManager::handleMenuGesture(uint8_t gesture) {
+  if (!inMenu) {
+    return false;
+  }
+
+  unsigned long now = millis();
+  
+  // Gesture codes from CST816T
+  const uint8_t GESTURE_UP = 0x01;
+  const uint8_t GESTURE_DOWN = 0x02;
+  const uint8_t GESTURE_LEFT = 0x03;
+  const uint8_t GESTURE_RIGHT = 0x04;
+  const uint8_t GESTURE_CLICK = 0x05;
+  const uint8_t GESTURE_DOUBLE_CLICK = 0x0B;
+  
+  // Cooldown for swipe gestures to slow down navigation
+  const unsigned long SWIPE_COOLDOWN_MS = 400;  // 400ms between swipes
+  
+  switch (gesture) {
+    case GESTURE_UP:
+      // Swipe up = previous app (with cooldown)
+      if (now - lastGestureTime >= SWIPE_COOLDOWN_MS) {
+        previous();
+        lastGestureTime = now;
+        Serial.println("Gesture: Swipe UP - Previous app");
+        return true;
+      }
+      return false;
+      
+    case GESTURE_DOWN:
+      // Swipe down = next app (with cooldown)
+      if (now - lastGestureTime >= SWIPE_COOLDOWN_MS) {
+        next();
+        lastGestureTime = now;
+        Serial.println("Gesture: Swipe DOWN - Next app");
+        return true;
+      }
+      return false;
+      
+    case GESTURE_DOUBLE_CLICK:
+      // Double tap = select current app
+      Serial.printf("Gesture: Double Tap - Selecting app %d (%s)\n", menuIndex, apps[menuIndex].name);
+      select();
+      return true;
+      
+    case GESTURE_CLICK:
+      // Single click ignored in menu (use double tap to select)
+      Serial.println("Gesture: Single Click (ignored - use double tap to select)");
+      return false;
+      
+    case GESTURE_LEFT:
+    case GESTURE_RIGHT:
+      // Horizontal swipes could be used for other features later
+      Serial.printf("Gesture: Swipe %s (not assigned)\n", gesture == GESTURE_LEFT ? "LEFT" : "RIGHT");
+      return false;
+      
+    default:
+      return false;
+  }
+}
+
+void AppManager::resetTouchScroll() {
+  touchScrollActive = false;
+  lastTouchY = 0;
+  touchStartY = 0;
+  scrollStartIndex = 0;
+  touchStartTime = 0;
+  // Don't reset lastGestureTime - keep cooldown between gestures
 }
 
 void AppManager::drawActiveApp(Gc9Display &display, bool &timeSynced, void (*drawClock)(Gc9Display&, bool&)) {
@@ -232,8 +391,16 @@ void AppManager::resetToClock() {
   menuJustClosed = true;
   menuDirty = true;
   lastDrawnAppIndex = -1;
+  menuBoundsValid = false;
 }
 
 void AppManager::markMenuDirty() {
   menuDirty = true;
+}
+
+void AppManager::setTouchCalibration(int16_t xOffset, int16_t yOffset, float xScale, float yScale) {
+  touchOffsetX = xOffset;
+  touchOffsetY = yOffset;
+  touchScaleX = xScale;
+  touchScaleY = yScale;
 }
