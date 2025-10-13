@@ -30,6 +30,7 @@ struct WeatherAppContext {
   unsigned long lastFetchTime = 0;
   const unsigned long FETCH_INTERVAL_MS = 300000; // 5 minutes
   bool fetching = false;
+  char gridpoint[128]; // Store the weather.gov forecast URL
 };
 
 extern WeatherAppContext gWeatherCtx;

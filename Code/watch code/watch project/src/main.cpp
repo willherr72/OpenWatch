@@ -11,15 +11,38 @@
 #include "timer_app.h"
 #include "weather_app.h"
 #include "fitness_app.h"
+#include "touch_input.h"
+#include "calibration_app.h"
 
-// GC9A01 SPI pins remapped for ESP32-C3 SuperMini headers
-constexpr int TFT_SCK  = 4;   // D4  -> FSPI CLK
-constexpr int TFT_MOSI = 6;   // D6  -> FSPI MOSI (D pin)
-constexpr int TFT_MISO = 5;   // D5  -> FSPI MISO (Q pin, not wired on panel)
-constexpr int TFT_CS   = 7;   // D7  -> Chip select
-constexpr int TFT_DC   = 8;   // D8  -> Data/Command select
-constexpr int TFT_RST  = 9;   // D9  -> Reset line
-constexpr int TFT_BL   = 10;  // D10 -> Backlight enable (set HIGH)
+#ifndef TFT_SCK_PIN
+#define TFT_SCK_PIN SCK
+#endif
+#ifndef TFT_MOSI_PIN
+#define TFT_MOSI_PIN MOSI
+#endif
+#ifndef TFT_MISO_PIN
+#define TFT_MISO_PIN MISO
+#endif
+#ifndef TFT_CS_PIN
+#define TFT_CS_PIN SS
+#endif
+#ifndef TFT_DC_PIN
+#define TFT_DC_PIN 8
+#endif
+#ifndef TFT_RST_PIN
+#define TFT_RST_PIN 9
+#endif
+#ifndef TFT_BL_PIN
+#define TFT_BL_PIN 10
+#endif
+
+constexpr int TFT_SCK  = TFT_SCK_PIN;
+constexpr int TFT_MOSI = TFT_MOSI_PIN;
+constexpr int TFT_MISO = TFT_MISO_PIN;
+constexpr int TFT_CS   = TFT_CS_PIN;
+constexpr int TFT_DC   = TFT_DC_PIN;
+constexpr int TFT_RST  = TFT_RST_PIN;
+constexpr int TFT_BL   = TFT_BL_PIN;
 
 // Use Adafruit_GC9A01A over SPI
 #include <SPI.h>
@@ -27,9 +50,29 @@ SPIClass displaySPI(FSPI);
 Gc9Display display(&displaySPI, TFT_DC, TFT_CS, TFT_RST);
 
 // Sleep and button management
-ButtonHandler button;               // primary button (sleep / select)
-constexpr uint8_t BUTTON_MENU_PIN = 21; // choose a free GPIO for menu button (adjust wiring)
-ButtonHandler menuButton(BUTTON_MENU_PIN); // second button for menu/navigation
+#ifndef MENU_BUTTON_PIN
+#define MENU_BUTTON_PIN 21
+#endif
+
+#ifndef BUTTON_PRIMARY_PIN
+#define BUTTON_PRIMARY_PIN 0
+#endif
+
+#ifndef TOUCH_CALIB_X_OFFSET
+#define TOUCH_CALIB_X_OFFSET 0
+#endif
+#ifndef TOUCH_CALIB_Y_OFFSET
+#define TOUCH_CALIB_Y_OFFSET 0
+#endif
+#ifndef TOUCH_CALIB_X_SCALE
+#define TOUCH_CALIB_X_SCALE 1.0f
+#endif
+#ifndef TOUCH_CALIB_Y_SCALE
+#define TOUCH_CALIB_Y_SCALE 1.0f
+#endif
+
+ButtonHandler button(BUTTON_PRIMARY_PIN);               // primary button (sleep / select)
+ButtonHandler menuButton(MENU_BUTTON_PIN); // second button for menu/navigation
 SleepManager sleepMgr;
 AppManager appMgr;
 
@@ -52,7 +95,8 @@ void registerClockApp(AppManager& appManager) {
     nullptr,               // drawFunction (handled specially)
     nullptr,               // updateFunction (not needed)
     nullptr,               // buttonHandler (not needed)
-    true                   // isSpecial (this is the clock app)
+    true,                  // isSpecial (this is the clock app)
+    nullptr                // resetFunction (not needed for clock)
   };
   
   appManager.registerApp(clockApp);
@@ -65,14 +109,13 @@ void setup() {
   Serial.println(F("=== ESP32-C6 Boot ==="));
   Serial.println(F("Booting NTP clock..."));
 
-  // Ensure maximum CPU frequency (ESP32-C6 max 160 MHz on Arduino core)
-  setCpuFrequencyMhz(160);
-  delay(10);
-  Serial.printf("CPU Frequency set to %d MHz\n", getCpuFrequencyMhz());
+  // CPU already configured via board_build.f_cpu; log actual clock for confirmation
+  Serial.printf("CPU Frequency currently %d MHz\n", getCpuFrequencyMhz());
 
   // Initialize buttons
   button.begin();
   menuButton.begin();
+  touchInit();
   
   // Configure wake-up for light sleep
   Serial.println(F("Configuring wake-up for light sleep..."));
@@ -102,6 +145,8 @@ void setup() {
   registerFitnessApp(appMgr);
   registerTimerApp(appMgr);
   registerWeatherApp(appMgr);
+  registerCalibrationApp(appMgr);
+  appMgr.setTouchCalibration(TOUCH_CALIB_X_OFFSET, TOUCH_CALIB_Y_OFFSET, TOUCH_CALIB_X_SCALE, TOUCH_CALIB_Y_SCALE);
   
   Serial.println(F("Registered apps with app manager"));
   
@@ -135,9 +180,11 @@ void loop() {
     if (appMgr.isMenuActive()) {
       // exit without selection
       appMgr.exitMenu();
+      touchResetState();
       lastUpdate = 0; // refresh
     } else {
       appMgr.enterMenu();
+      touchResetState();
     }
   }
 
@@ -187,6 +234,11 @@ void loop() {
       sleepMgr.goToSleep(display);
       // Execution continues here after wake-up from light sleep
       Serial.println(F("Returned from light sleep"));
+      
+      // Re-initialize WiFi after wake (it may have disconnected during sleep)
+      Serial.println(F("Re-initializing WiFi after wake..."));
+      lastWiFiAttempt = 0;  // Reset WiFi retry timer to allow immediate reconnect
+      
       // Always return to clock app after waking
       appMgr.resetToClock();
       
@@ -227,9 +279,50 @@ void loop() {
   }
 
   if (appMgr.isMenuActive()) {
-  appMgr.draw(display);
-    delay(50); // modest refresh pacing
-    return;
+    TouchPoint touchPoint{};
+    if (touchRead(touchPoint)) {
+      static unsigned long lastTouchLog = 0;
+      unsigned long nowMs = millis();
+      
+      // Log touch events (rate limited)
+      if (nowMs - lastTouchLog > 500) {
+        if (touchPoint.gesture != TouchGesture::NONE) {
+          Serial.printf("Touch -> x:%u y:%u gesture:%u\n", touchPoint.x, touchPoint.y, static_cast<uint8_t>(touchPoint.gesture));
+        } else {
+          Serial.printf("Touch -> x:%u y:%u\n", touchPoint.x, touchPoint.y);
+        }
+        lastTouchLog = nowMs;
+      }
+      
+      // Handle gestures first (swipe up/down for navigation, double tap for selection)
+      bool handled = false;
+      if (touchPoint.gesture != TouchGesture::NONE) {
+        handled = appMgr.handleMenuGesture(static_cast<uint8_t>(touchPoint.gesture));
+      }
+      
+      // If no gesture or gesture not handled, use touch position for highlighting
+      if (!handled && touchPoint.touching) {
+        appMgr.handleMenuTouch(static_cast<int16_t>(touchPoint.x), static_cast<int16_t>(touchPoint.y));
+        // Touch always updates the display to show new highlight
+        handled = true;
+      }
+      
+      if (handled) {
+        lastUpdate = 0;
+        if (!appMgr.isMenuActive()) {
+          touchResetState();
+        }
+      }
+    } else {
+      // No touch detected - reset scroll state
+      appMgr.resetTouchScroll();
+    }
+
+    if (appMgr.isMenuActive()) {
+      appMgr.draw(display);
+      delay(50); // modest refresh pacing
+      return;
+    }
   }
 
   if (now - lastUpdate >= UPDATE_INTERVAL_MS) {
