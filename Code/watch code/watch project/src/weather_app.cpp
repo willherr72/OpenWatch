@@ -44,6 +44,11 @@ void weatherUpdate() {
   static unsigned long lastDebugTime = 0;
   unsigned long now = millis();
   
+  // Don't attempt fetch if WiFi is not connected
+  if (WiFi.status() != WL_CONNECTED) {
+    return;
+  }
+  
   // Force immediate update on first call
   if (gWeatherCtx.lastFetchTime == 0) {
     Serial.println("First weather update - forcing immediate fetch");
@@ -57,8 +62,9 @@ void weatherUpdate() {
     lastDebugTime = now;
   }
   
-  // Use shorter retry interval if no valid data exists
-  unsigned long retryInterval = gWeatherCtx.weather.valid ? gWeatherCtx.FETCH_INTERVAL_MS : 60000; // 1 minute retry if no data
+  // Use MUCH longer retry interval to avoid blocking the main loop too frequently
+  // Only retry every 5 minutes if we have valid data, 1 minute if not
+  unsigned long retryInterval = gWeatherCtx.weather.valid ? 300000 : 60000; // 5min or 1min retry
   
   if (!gWeatherCtx.fetching && (now - gWeatherCtx.lastFetchTime > retryInterval)) {
     if (WiFi.status() == WL_CONNECTED) {
@@ -96,8 +102,10 @@ bool fetchWeatherData() {
     
     http.begin(client, pointsUrl);
     http.addHeader("User-Agent", "ESP32-Weather-Watch");
-    http.setTimeout(10000);
+    http.setTimeout(5000);  // Reduced timeout to 5s
     int code = http.GET();
+    
+    yield();  // Allow button handler to run
     
     Serial.printf("Gridpoint HTTP Response Code: %d\n", code);
     
@@ -107,6 +115,8 @@ bool fetchWeatherData() {
       
       JsonDocument doc;
       DeserializationError err = deserializeJson(doc, payload);
+      
+      yield();  // Allow button handler to run
       
       if (!err) {
         // Use regular forecast - smaller payload and sufficient for our needs
@@ -142,8 +152,10 @@ bool fetchWeatherData() {
   
   http.begin(client, gWeatherCtx.gridpoint);
   http.addHeader("User-Agent", "ESP32-Weather-Watch");
-  http.setTimeout(10000);
+  http.setTimeout(5000);  // Reduced timeout to 5s
   int code = http.GET();
+  
+  yield();  // Allow button handler to run
   
   Serial.printf("Forecast HTTP Response Code: %d\n", code);
   
@@ -154,6 +166,8 @@ bool fetchWeatherData() {
     // Regular forecast is much smaller (~8KB vs 61KB for hourly)
     JsonDocument doc;
     DeserializationError err = deserializeJson(doc, payload);
+    
+    yield();  // Allow button handler to run
     
     if (!err) {
       Serial.println("=== PARSING WEATHER.GOV DATA ===");

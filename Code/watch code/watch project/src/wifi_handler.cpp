@@ -3,7 +3,7 @@
 #include <WiFi.h>
 
 // Local constants
-constexpr unsigned long WIFI_RETRY_INTERVAL = 15000; // 15s
+constexpr unsigned long WIFI_RETRY_INTERVAL = 60000; // 60s - increased to avoid frequent reconnection attempts
 constexpr unsigned long NTP_RETRY_INTERVAL = 20000;  // 20s
 
 void initWiFi(long gmtOffsetSec, int daylightOffsetSec, unsigned long &lastNtpAttempt) {
@@ -13,23 +13,11 @@ void initWiFi(long gmtOffsetSec, int daylightOffsetSec, unsigned long &lastNtpAt
   
   Serial.print(F("Connecting to ")); 
   Serial.println(F(WIFI_SSID));
+  Serial.println(F("WiFi connecting in background (non-blocking)..."));
   
-  uint32_t connectStart = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - connectStart < 12000) {
-    delay(300); 
-    Serial.print('.');
-  }
-  Serial.println();
-  
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.print(F("WiFi connected, IP: ")); 
-    Serial.println(WiFi.localIP());
-    // Configure NTP for UTC time - we'll handle timezone conversion manually
-    configTime(0, 0, "pool.ntp.org", "time.nist.gov");
-    lastNtpAttempt = millis();
-  } else {
-    Serial.println(F("WiFi connect failed."));
-  }
+  // Don't block - WiFi will continue connecting in the background
+  // The handleWiFiReconnection() and handleNTPRetry() functions in the main loop
+  // will handle the connection attempts and NTP sync when WiFi connects
 }
 
 bool isWiFiConnected() {
@@ -37,34 +25,25 @@ bool isWiFiConnected() {
 }
 
 void handleWiFiReconnection(unsigned long now, unsigned long &lastWiFiAttempt) {
-  // Retry WiFi if disconnected
+  // WiFi reconnection is handled automatically by ESP32's autoReconnect
+  // We only check for NTP configuration when connected
+  
   wl_status_t status = WiFi.status();
   
-  // Only attempt reconnection if not connected and not already connecting
-  if (status != WL_CONNECTED && status != WL_CONNECT_FAILED && status != WL_IDLE_STATUS) {
-    if (now - lastWiFiAttempt > WIFI_RETRY_INTERVAL) {
-      lastWiFiAttempt = now;
-      Serial.printf("Retry WiFi... (status: %d)\n", status);
-      
-      // Properly disconnect before reconnecting
-      WiFi.disconnect(true);  // true = clear WiFi credentials from memory
-      delay(100);  // Give time for disconnect to complete
-      
-      // Reconnect
-      WiFi.mode(WIFI_STA);
-      WiFi.begin(WIFI_SSID, WIFI_PASS);
-    }
-  } else if (status == WL_CONNECT_FAILED) {
-    // If connection failed, wait and reset
-    if (now - lastWiFiAttempt > WIFI_RETRY_INTERVAL) {
-      lastWiFiAttempt = now;
-      Serial.println(F("WiFi connection failed, resetting..."));
-      WiFi.disconnect(true);
-      delay(100);
-      WiFi.mode(WIFI_STA);
-      WiFi.begin(WIFI_SSID, WIFI_PASS);
-    }
+  // Check if just connected - configure NTP
+  static bool ntpConfigured = false;
+  if (status == WL_CONNECTED && !ntpConfigured) {
+    Serial.print(F("WiFi connected, IP: ")); 
+    Serial.println(WiFi.localIP());
+    // Configure NTP for UTC time - we'll handle timezone conversion manually
+    configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+    ntpConfigured = true;
+    lastWiFiAttempt = now;
+    return;
   }
+  
+  // Note: Manual reconnection attempts have been removed to avoid blocking the main loop
+  // The ESP32's autoReconnect feature handles WiFi reconnection in the background
 }
 
 void handleNTPRetry(unsigned long now, bool timeSynced, long gmtOffsetSec, int daylightOffsetSec, unsigned long &lastNtpAttempt) {

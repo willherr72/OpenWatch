@@ -284,7 +284,10 @@ bool AppManager::handleMenuGesture(uint8_t gesture) {
   const uint8_t GESTURE_DOUBLE_CLICK = 0x0B;
   
   // Cooldown for swipe gestures to slow down navigation
-  const unsigned long SWIPE_COOLDOWN_MS = 400;  // 400ms between swipes
+  const unsigned long SWIPE_COOLDOWN_MS = 175;  // 175ms between swipes
+  
+  Serial.printf("AppManager::handleMenuGesture called with gesture=0x%02X (inMenu=%d, timeSinceLastGesture=%lums)\n", 
+                gesture, inMenu, now - lastGestureTime);
   
   switch (gesture) {
     case GESTURE_UP:
@@ -294,8 +297,11 @@ bool AppManager::handleMenuGesture(uint8_t gesture) {
         lastGestureTime = now;
         Serial.println("Gesture: Swipe UP - Previous app");
         return true;
+      } else {
+        Serial.printf("Gesture: Swipe UP blocked by cooldown (%lu ms remaining)\n", 
+                      SWIPE_COOLDOWN_MS - (now - lastGestureTime));
+        return false;
       }
-      return false;
       
     case GESTURE_DOWN:
       // Swipe down = next app (with cooldown)
@@ -304,25 +310,30 @@ bool AppManager::handleMenuGesture(uint8_t gesture) {
         lastGestureTime = now;
         Serial.println("Gesture: Swipe DOWN - Next app");
         return true;
+      } else {
+        Serial.printf("Gesture: Swipe DOWN blocked by cooldown (%lu ms remaining)\n", 
+                      SWIPE_COOLDOWN_MS - (now - lastGestureTime));
+        return false;
       }
-      return false;
       
     case GESTURE_DOUBLE_CLICK:
-      // Double tap = select current app
-      Serial.printf("Gesture: Double Tap - Selecting app %d (%s)\n", menuIndex, apps[menuIndex].name);
-      select();
-      return true;
+      // Double click not assigned
+      Serial.printf("Gesture: Double Click (not assigned)\n");
+      return false;
       
     case GESTURE_CLICK:
-      // Single click ignored in menu (use double tap to select)
-      Serial.println("Gesture: Single Click (ignored - use double tap to select)");
+      // Single click not assigned
+      Serial.println("Gesture: Single Click (not assigned)");
       return false;
       
     case GESTURE_LEFT:
     case GESTURE_RIGHT:
-      // Horizontal swipes could be used for other features later
-      Serial.printf("Gesture: Swipe %s (not assigned)\n", gesture == GESTURE_LEFT ? "LEFT" : "RIGHT");
-      return false;
+      // Horizontal swipes = select current app (NO COOLDOWN)
+      Serial.printf("Gesture: Swipe %s - Selecting app %d (%s) - NO COOLDOWN\n", 
+                    gesture == GESTURE_LEFT ? "LEFT" : "RIGHT", menuIndex, apps[menuIndex].name);
+      select();
+      lastGestureTime = now;  // Update for other gestures
+      return true;
       
     default:
       return false;

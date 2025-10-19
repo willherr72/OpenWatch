@@ -1,5 +1,6 @@
 #pragma once
 #include "display_adapter.h"
+#include "touch_input.h"
 #include <Arduino.h>
 
 // Forward declaration
@@ -32,6 +33,7 @@ extern TimerAppContext gTimerCtx;
 void timerAppHandlePrimaryShort();
 void timerAppHandlePrimaryLong();
 void timerAppHandleMenuLong();
+void timerAppHandleTouch(const TouchPoint& touchPoint);
 void timerAppUpdate();
 void drawTimer(Gc9Display &display);
 void resetTimerDisplay(Gc9Display &display);

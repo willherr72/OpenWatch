@@ -116,13 +116,15 @@ void CST816SDriver::setMode(uint8_t mode) {
     writeRegister(CST816_REG_IRQ_CTL, CST816_IRQ_EN_TOUCH | CST816_IRQ_EN_MOTION);
     writeRegister(CST816_REG_NOR_SCAN_PER, 0x01);  // 10ms scan period
     writeRegister(CST816_REG_IRQ_PULSE_WIDTH, 0x0F);  // 1.5ms interrupt pulse
-    writeRegister(CST816_REG_MOTION_MASK, CST816_MOTION_EN_DCLICK | CST816_MOTION_EN_CON_UD);  // Enable double-click and swipe gestures
+    // Enable all gestures
+    writeRegister(CST816_REG_MOTION_MASK, 0x07);  // Enable all motion detection (bit 0,1,2)
   } else {
     // Gesture mode
     writeRegister(CST816_REG_IRQ_CTL, CST816_IRQ_EN_MOTION);
     writeRegister(CST816_REG_NOR_SCAN_PER, 0x01);
     writeRegister(CST816_REG_IRQ_PULSE_WIDTH, 0x01);
-    writeRegister(CST816_REG_MOTION_MASK, CST816_MOTION_EN_DCLICK | CST816_MOTION_EN_CON_UD);  // Enable double-click and swipe gestures
+    // Enable all gestures
+    writeRegister(CST816_REG_MOTION_MASK, 0x07);  // Enable all motion detection (bit 0,1,2)
   }
 }
 
