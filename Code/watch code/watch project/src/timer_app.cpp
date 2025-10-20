@@ -1,5 +1,6 @@
 #include "timer_app.h"
 #include "app_manager.h"
+#include "touch_input.h"
 
 TimerAppContext gTimerCtx; // global context instance
 
@@ -12,6 +13,14 @@ struct TimerRenderCache {
 };
 
 TimerRenderCache renderCache;
+
+// Store preset button bounds for touch detection
+struct PresetBounds {
+  int16_t x, y, w, h;
+  uint8_t presetIndex;
+};
+PresetBounds presetBounds[3];
+bool boundsValid = false;
 }
 
 static void formatTime(uint32_t msRemaining, char *buf, size_t len) {
@@ -23,6 +32,7 @@ static void formatTime(uint32_t msRemaining, char *buf, size_t len) {
 
 void resetTimerDisplay(Gc9Display &display) {
   renderCache = TimerRenderCache{};
+  boundsValid = false;
   display.fillScreen(COLOR_BLACK);
 }
 
@@ -106,6 +116,66 @@ uint32_t timerRemainingSeconds() {
   return remain;
 }
 
+void timerAppHandleTouch(const TouchPoint& touchPoint) {
+  // Handle gestures based on current state
+  Serial.printf("Timer app received touch: gesture=0x%02X (%s), touching=%d, x=%d, y=%d, state=%d\n", 
+                static_cast<uint8_t>(touchPoint.gesture), gestureToString(touchPoint.gesture), 
+                touchPoint.touching, touchPoint.x, touchPoint.y, 
+                static_cast<int>(gTimerCtx.state));
+  
+  if (gTimerCtx.state == TimerState::SELECTING) {
+    // Handle swipe gestures for preset selection
+    if (touchPoint.gesture == TouchGesture::SWIPE_UP) {
+      // Previous preset (cycle backwards)
+      if (gTimerCtx.presetIndex == 0) {
+        gTimerCtx.presetIndex = 2; // Wrap to last
+      } else {
+        gTimerCtx.presetIndex--;
+      }
+      gTimerCtx.targetDuration = gTimerCtx.presets[gTimerCtx.presetIndex];
+      Serial.printf("Timer: Swipe UP - preset %d\n", gTimerCtx.presetIndex);
+      return;
+    }
+    
+    if (touchPoint.gesture == TouchGesture::SWIPE_DOWN) {
+      // Next preset (cycle forwards)
+      gTimerCtx.presetIndex = (gTimerCtx.presetIndex + 1) % 3;
+      gTimerCtx.targetDuration = gTimerCtx.presets[gTimerCtx.presetIndex];
+      Serial.printf("Timer: Swipe DOWN - preset %d\n", gTimerCtx.presetIndex);
+      return;
+    }
+    
+    // Handle long press to start timer
+    if (touchPoint.gesture == TouchGesture::LONG_PRESS) {
+      Serial.println("***LONG PRESS DETECTED - STARTING TIMER***");
+      timerAppHandlePrimaryLong();
+      Serial.println("Timer: Long press - starting");
+      return;
+    }
+  }
+  
+  else if (gTimerCtx.state == TimerState::RUNNING) {
+    // In RUNNING state:
+    // - Swipe DOWN = cancel timer
+    if (touchPoint.gesture == TouchGesture::SWIPE_DOWN) {
+      timerAppHandleMenuLong();
+      Serial.println("Timer: Swipe DOWN - canceling");
+      return;
+    }
+  }
+  
+  else if (gTimerCtx.state == TimerState::DONE) {
+    // In DONE state:
+    // - Long press = reset to selecting
+    if (touchPoint.gesture == TouchGesture::LONG_PRESS) {
+      Serial.println("***LONG PRESS DETECTED - RESETTING TIMER***");
+      timerAppHandlePrimaryLong();
+      Serial.println("Timer: Long press - resetting");
+      return;
+    }
+  }
+}
+
 void drawTimer(Gc9Display &display) {
   timerAppUpdate();
 
@@ -158,6 +228,10 @@ void drawTimer(Gc9Display &display) {
           int16_t rectY = textY - paddingY / 2;
           int16_t rectW = static_cast<int16_t>(w) + paddingX * 2;
           int16_t rectH = static_cast<int16_t>(h) + paddingY;
+          
+          // Store bounds for touch detection
+          presetBounds[i] = {rectX, rectY, rectW, rectH, i};
+          
           if (i == gTimerCtx.presetIndex) {
             display.fillRoundRect(rectX, rectY, rectW, rectH, 12, COLOR_WHITE);
             display.setTextColor(COLOR_BLACK);
@@ -168,11 +242,12 @@ void drawTimer(Gc9Display &display) {
           display.setCursor(textX, textY - y1);
           display.print(labels[i]);
         }
+        
+        boundsValid = true;
 
         display.setTextColor(COLOR_WHITE);
-        drawCentered("Short press: next", display.height() - 40, 1);
-        drawCentered("Long press: start", display.height() - 22, 1);
-        display.display();
+        drawCentered("Swipe up/down to select", display.height() - 40, 1);
+        drawCentered("Long press to start", display.height() - 22, 1);
       }
       renderCache.lastPresetIndex = gTimerCtx.presetIndex;
       renderCache.lastRemainingSeconds = UINT32_MAX;
@@ -182,7 +257,7 @@ void drawTimer(Gc9Display &display) {
       if (forceRedraw) {
         display.fillScreen(COLOR_BLACK);
         drawCentered("Timer", 40, 1);
-        drawCentered("Menu hold: cancel", display.height() - 24, 1);
+        drawCentered("Swipe down: cancel", display.height() - 24, 1);
         renderCache.lastRemainingSeconds = UINT32_MAX;
       }
 
@@ -217,7 +292,6 @@ void drawTimer(Gc9Display &display) {
         clearRegion(x - padding, y - padding, static_cast<int16_t>(w) + padding * 2, static_cast<int16_t>(h) + padding * 2);
         display.setCursor(x, y - y1);
         display.print(buf);
-        display.display();
         renderCache.lastRemainingSeconds = remainingSecs;
       }
       break;
@@ -228,7 +302,6 @@ void drawTimer(Gc9Display &display) {
         drawCentered("Timer", 40, 1);
         drawCentered("DONE", display.height() / 2, 3);
         drawCentered("Long press: reset", display.height() - 24, 1);
-        display.display();
       }
       renderCache.lastRemainingSeconds = UINT32_MAX;
       break;

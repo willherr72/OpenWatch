@@ -106,6 +106,77 @@ const uint8_t candidateAddresses[] = {
   0x38
 };
 
+// Double-tap detection state
+struct DoubleTapDetector {
+  unsigned long lastTouchEndTime = 0;
+  uint16_t lastTouchX = 0;
+  uint16_t lastTouchY = 0;
+  bool lastWasTouching = false;
+  bool doubleTapDetected = false;
+  
+  // Track first tap for accurate double-tap
+  unsigned long t0 = 0;
+  uint16_t sx0 = 0;
+  uint16_t sy0 = 0;
+  
+  const uint16_t TAP_RADIUS = 15;      // pixels - max movement for tap (from reference)
+  const uint16_t TAP_TIME_MS = 200;    // max tap press duration (from reference)
+  const uint16_t DOUBLE_TAP_WINDOW = 350;  // max time between taps
+  
+  // Returns true if a double-tap is detected
+  bool update(uint16_t x, uint16_t y, bool touching) {
+    doubleTapDetected = false;
+    unsigned long now = millis();
+    
+    if (touching && !lastWasTouching) {
+      // Touch started - check if this could be 2nd tap
+      unsigned long timeSinceFirstTap = now - lastTouchEndTime;
+      
+      // Check if previous tap was valid and this is within double-tap window
+      if (timeSinceFirstTap < DOUBLE_TAP_WINDOW && lastTouchEndTime > 0) {
+        // Calculate distance from first tap
+        int16_t dx = static_cast<int16_t>(x) - static_cast<int16_t>(lastTouchX);
+        int16_t dy = static_cast<int16_t>(y) - static_cast<int16_t>(lastTouchY);
+        int16_t distance = abs(dx) + abs(dy);  // Manhattan distance
+        
+        if (distance < TAP_RADIUS) {
+          // This looks like a double-tap! Record it
+          doubleTapDetected = true;
+          Serial.printf("DOUBLE-TAP DETECTED: first tap at (%u,%u), second tap at (%u,%u), distance=%d\n", 
+                        lastTouchX, lastTouchY, x, y, distance);
+          lastTouchEndTime = 0;  // Reset to avoid triple-taps
+          return true;
+        }
+      }
+      
+      // Otherwise, this is the first tap - record it
+      t0 = now;
+      sx0 = x;
+      sy0 = y;
+      lastTouchX = x;
+      lastTouchY = y;
+      
+    } else if (!touching && lastWasTouching) {
+      // Touch ended - check if it was a valid tap
+      unsigned long tapDuration = now - t0;
+      
+      if (tapDuration <= TAP_TIME_MS) {
+        // This was a valid tap, record end time for double-tap window
+        lastTouchEndTime = now;
+        Serial.printf("TAP REGISTERED: duration=%lu ms at (%u,%u)\n", tapDuration, sx0, sy0);
+      } else {
+        // Tap was too long, probably a drag - reset double-tap state
+        lastTouchEndTime = 0;
+        Serial.printf("LONG PRESS/DRAG (not a tap): duration=%lu ms\n", tapDuration);
+      }
+    }
+    
+    lastWasTouching = touching;
+    return false;
+  }
+} doubleTapDetector;
+
+
 void mapToDisplay(uint16_t rawX, uint16_t rawY, uint16_t &mappedX, uint16_t &mappedY) {
   auto clampRaw = [](uint16_t value, uint16_t minVal, uint16_t maxVal) -> uint16_t {
     if (maxVal <= minVal) {
@@ -244,9 +315,23 @@ bool touchRead(TouchPoint &point) {
   point.touching = rawPoint.touching;
   point.gesture = static_cast<TouchGesture>(rawPoint.gesture);
   
-  // Debug: log successful touch reads
+  // Software-based double-tap detection
+  if (doubleTapDetector.update(mappedX, mappedY, rawPoint.touching)) {
+    // Double-tap detected - override hardware gesture
+    point.gesture = TouchGesture::DOUBLE_CLICK;
+    Serial.println("SOFT DOUBLE-TAP DETECTED!");
+  }
+  
+  // Debug: log ALL gestures with readable names
+  if (rawPoint.gesture != 0x00) {
+    Serial.printf("GESTURE DETECTED: gesture=0x%02X (%s), raw(%u,%u) smooth(%u,%u) mapped(%u,%u) touching=%d\n",
+                  rawPoint.gesture, gestureToString(point.gesture), 
+                  rawPoint.x, rawPoint.y, smoothX, smoothY, mappedX, mappedY, rawPoint.touching);
+  }
+  
+  // Debug: log successful touch reads every 500ms
   static unsigned long lastTouchDebugMs = 0;
-  if (now - lastTouchDebugMs > 200) {
+  if (now - lastTouchDebugMs > 500 && rawPoint.touching) {
     Serial.printf("Touch OK: raw(%u,%u) smooth(%u,%u) mapped(%u,%u) gesture=%u\n",
                   rawPoint.x, rawPoint.y, smoothX, smoothY, mappedX, mappedY, rawPoint.gesture);
     lastTouchDebugMs = now;
@@ -258,6 +343,9 @@ bool touchRead(TouchPoint &point) {
 void touchResetState() {
   lastDeliveredTouch = false;
   sampleHistory.reset();
+  doubleTapDetector.lastTouchEndTime = 0;
+  doubleTapDetector.lastWasTouching = false;
+  doubleTapDetector.doubleTapDetected = false;
   inputReadyTimeMs = millis() + 80;
   touchDriver.resetState();
 }

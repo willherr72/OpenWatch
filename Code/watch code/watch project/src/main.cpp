@@ -12,7 +12,6 @@
 #include "weather_app.h"
 #include "fitness_app.h"
 #include "touch_input.h"
-#include "calibration_app.h"
 
 #ifndef TFT_SCK_PIN
 #define TFT_SCK_PIN SCK
@@ -50,37 +49,17 @@ SPIClass displaySPI(FSPI);
 Gc9Display display(&displaySPI, TFT_DC, TFT_CS, TFT_RST);
 
 // Sleep and button management
-#ifndef MENU_BUTTON_PIN
-#define MENU_BUTTON_PIN 21
-#endif
-
-#ifndef BUTTON_PRIMARY_PIN
-#define BUTTON_PRIMARY_PIN 0
-#endif
-
-#ifndef TOUCH_CALIB_X_OFFSET
-#define TOUCH_CALIB_X_OFFSET 0
-#endif
-#ifndef TOUCH_CALIB_Y_OFFSET
-#define TOUCH_CALIB_Y_OFFSET 0
-#endif
-#ifndef TOUCH_CALIB_X_SCALE
-#define TOUCH_CALIB_X_SCALE 1.0f
-#endif
-#ifndef TOUCH_CALIB_Y_SCALE
-#define TOUCH_CALIB_Y_SCALE 1.0f
-#endif
-
 ButtonHandler button(BUTTON_PRIMARY_PIN);               // primary button (sleep / select)
 ButtonHandler menuButton(MENU_BUTTON_PIN); // second button for menu/navigation
 SleepManager sleepMgr;
 AppManager appMgr;
 
-unsigned long lastUpdate = 0; // last display refresh
+unsigned long lastDisplayUpdate = 0; // last display refresh
 const unsigned long UPDATE_INTERVAL_MS = 500; // update twice per second
 bool timeSynced = false;
 unsigned long lastWiFiAttempt = 0;
 unsigned long lastNtpAttempt = 0;
+unsigned long lastWiFiCheckTime = 0;  // For throttling WiFi operations
 // Timezone configuration for Central Time Zone
 // October 8, 2025 is during Daylight Saving Time (CDT = UTC-5 = -18000 seconds)
 // DST ends first Sunday in November (Nov 2, 2025)
@@ -107,7 +86,7 @@ void setup() {
   while(!Serial && millis() < 1500) { }
   Serial.println();
   Serial.println(F("=== ESP32-C6 Boot ==="));
-  Serial.println(F("Booting NTP clock..."));
+  Serial.println(F("Starting up..."));
 
   // CPU already configured via board_build.f_cpu; log actual clock for confirmation
   Serial.printf("CPU Frequency currently %d MHz\n", getCpuFrequencyMhz());
@@ -115,6 +94,12 @@ void setup() {
   // Initialize buttons
   button.begin();
   menuButton.begin();
+  
+  // Debug: Check button GPIO state
+  delay(100);
+  Serial.printf("Initial button states - Primary (GPIO 20): %d, Menu (GPIO 21): %d\n", 
+    digitalRead(20), digitalRead(21));
+  
   touchInit();
   
   // Configure wake-up for light sleep
@@ -134,199 +119,218 @@ void setup() {
   display.begin();
   display.setRotation(0); // 0-3 depending on mounting
 
-  display.setTextColor(COLOR_WHITE);
-  display.setTextSize(1);
-  display.setCursor(0, 0);
-  display.println(F("Registering Apps"));
-  display.display();
-  
   // Register all apps dynamically
   registerClockApp(appMgr);
   registerFitnessApp(appMgr);
   registerTimerApp(appMgr);
   registerWeatherApp(appMgr);
-  registerCalibrationApp(appMgr);
   appMgr.setTouchCalibration(TOUCH_CALIB_X_OFFSET, TOUCH_CALIB_Y_OFFSET, TOUCH_CALIB_X_SCALE, TOUCH_CALIB_Y_SCALE);
   
   Serial.println(F("Registered apps with app manager"));
   
-  display.setCursor(0, 10);
-  display.println(F("WiFi Init"));
+  // Initialize display to clock with "no wifi" state
+  display.fillScreen(COLOR_BLACK);
   display.display();
-  lastUpdate = 0; // force immediate update
+  lastDisplayUpdate = 0; // force immediate update
 
-  showMessage(display, F("Connecting..."));
+  // Initialize WiFi in background (NON-BLOCKING)
+  // WiFi will connect in the background while buttons remain responsive
   initWiFi(gmtOffsetSec, daylightOffsetSec, lastNtpAttempt);
+  Serial.println(F("WiFi initialization started (non-blocking)"));
   
   // Initialize weather app
   weatherInit();
   
-  if (isWiFiConnected()) {
-    showMessage(display, F("Sync NTP"));
-  } else {
-    showMessage(display, F("No WiFi"));
-  }
+  Serial.println(F("Boot complete"));
 }
 
 void loop() {
   unsigned long now = millis();
+  static unsigned long lastBackgroundTasks = 0;
+  static unsigned long lastDisplayUpdate = 0;
+  static TouchGesture lastProcessedGesture = TouchGesture::NONE;  // Track last processed gesture to avoid repeats
+  static unsigned long lastGestureTime = 0;  // Time of last processed gesture
   
-  // Update buttons
+  // ============================================
+  // ABSOLUTE PRIORITY: Button handling ONLY
+  // This runs EVERY iteration to catch all presses
+  // ============================================
   ButtonEvent primaryEvent = button.update();
   ButtonEvent menuEvent = menuButton.update();
 
-  // Enter / exit menu with menu button short press
-  if (menuEvent == ButtonEvent::SHORT_PRESS) {
+  // Handle menu button - respond to both SHORT and LONG presses to open menu
+  if (menuEvent == ButtonEvent::SHORT_PRESS || menuEvent == ButtonEvent::LONG_PRESS) {
     if (appMgr.isMenuActive()) {
-      // exit without selection
-      appMgr.exitMenu();
-      touchResetState();
-      lastUpdate = 0; // refresh
+      if (menuEvent == ButtonEvent::SHORT_PRESS) {
+        appMgr.exitMenu();
+        touchResetState();
+        lastDisplayUpdate = 0;
+      }
     } else {
+      // Open menu on any button press
       appMgr.enterMenu();
       touchResetState();
+      lastDisplayUpdate = 0;
     }
   }
 
+  // Menu navigation with primary button
   if (appMgr.isMenuActive()) {
-    // Navigate menu: primary short -> next, long -> select; menu long -> previous
     if (primaryEvent == ButtonEvent::SHORT_PRESS) {
       appMgr.next();
     } else if (primaryEvent == ButtonEvent::LONG_PRESS) {
       appMgr.select();
-      lastUpdate = 0;
+      lastDisplayUpdate = 0;
     }
     if (menuEvent == ButtonEvent::LONG_PRESS) {
       appMgr.previous();
     }
   } else {
-    // App-specific handling when not in menu
+    // App-specific button handling
     const App* currentApp = appMgr.currentApp();
     if (currentApp && strcmp(currentApp->name, "Timer") == 0) {
-      // Timer app button handling
       extern void timerAppHandlePrimaryShort();
       extern void timerAppHandlePrimaryLong();
       extern void timerAppHandleMenuLong();
       if (primaryEvent == ButtonEvent::SHORT_PRESS) {
         timerAppHandlePrimaryShort();
-        lastUpdate = 0;
+        lastDisplayUpdate = 0;
       } else if (primaryEvent == ButtonEvent::LONG_PRESS) {
         timerAppHandlePrimaryLong();
-        lastUpdate = 0;
+        lastDisplayUpdate = 0;
       }
       if (menuEvent == ButtonEvent::LONG_PRESS) {
         timerAppHandleMenuLong();
-        lastUpdate = 0;
+        lastDisplayUpdate = 0;
       }
     } else {
       // Normal mode: long press primary -> sleep
       if (primaryEvent == ButtonEvent::LONG_PRESS) {
-        Serial.println(F("Long press detected - initiating sleep"));
+        Serial.println(F("Long press - sleep"));
         sleepMgr.triggerSleep();
       }
     }
   }
   
-  // Handle sleep (immediate - no countdown)
+  // Sleep handling (blocking operation, but only when needed)
   if (sleepMgr.getState() == SleepState::GOING_TO_SLEEP) {
     if (sleepMgr.updateCountdown()) {
-      // Go to sleep immediately
       sleepMgr.goToSleep(display);
-      // Execution continues here after wake-up from light sleep
-      Serial.println(F("Returned from light sleep"));
-      
-      // Re-initialize WiFi after wake (it may have disconnected during sleep)
-      Serial.println(F("Re-initializing WiFi after wake..."));
-      lastWiFiAttempt = 0;  // Reset WiFi retry timer to allow immediate reconnect
-      
-      // Always return to clock app after waking
+      lastWiFiAttempt = 0;
       appMgr.resetToClock();
-      
-      // Show wake message
       sleepMgr.showWakeMessage(display);
-      delay(2000);  // Show wake message for 2 seconds
-      
-      // Force display update after wake
-      lastUpdate = 0;
+      delay(2000);
+      lastDisplayUpdate = 0;
       return;
     }
-    // No countdown display needed - sleep immediately
     return;
   }
-  
-  // Normal operation
-  // Update all registered apps that have update functions
-  for (int i = 0; i < appMgr.getAppCount(); i++) {
-    const App* app = appMgr.getApp(i);
-    if (app && app->updateFunction) {
-      app->updateFunction();
-    }
-  }
-  
-  handleWiFiReconnection(now, lastWiFiAttempt);
-  handleNTPRetry(now, timeSynced, gmtOffsetSec, daylightOffsetSec, lastNtpAttempt);
 
-  if (!appMgr.isMenuActive()) {
-    if (appMgr.consumeMenuClosedFlag()) {
-      const App* current = appMgr.currentApp();
-      if (current && current->isSpecial) {
-        resetClockDisplay(display);
+  // ============================================
+  // CRITICAL: Touch input processing EVERY LOOP
+  // This must run frequently to catch double-taps!
+  // ============================================
+  TouchPoint touchPoint{};
+  bool touchReady = touchRead(touchPoint);
+  
+  if (touchReady) {
+    // Only process a gesture once - don't repeat if gesture flag persists
+    bool isNewGesture = (touchPoint.gesture != lastProcessedGesture) || 
+                        (touchPoint.gesture == TouchGesture::NONE);
+    
+    if (touchPoint.gesture != TouchGesture::NONE) {
+      lastProcessedGesture = touchPoint.gesture;
+      lastGestureTime = now;
+    } else if (now - lastGestureTime > 50) {
+      // Clear the last gesture if no new input for 50ms
+      lastProcessedGesture = TouchGesture::NONE;
+    }
+    
+    if (isNewGesture && touchPoint.gesture != TouchGesture::NONE) {
+      // New gesture detected - log it
+      extern const char* gestureToString(TouchGesture gesture);
+      Serial.printf("[GESTURE] %s at (%d, %d)\n", gestureToString(touchPoint.gesture), touchPoint.x, touchPoint.y);
+      
+      // Process gesture
+      if (appMgr.isMenuActive()) {
+        // Menu mode: handle menu gestures
+        appMgr.handleMenuGesture(static_cast<uint8_t>(touchPoint.gesture));
+        lastDisplayUpdate = 0;
       } else {
-        display.fillScreen(COLOR_BLACK);
-      }
-      lastUpdate = 0;
-    }
-  }
-
-  if (appMgr.isMenuActive()) {
-    TouchPoint touchPoint{};
-    if (touchRead(touchPoint)) {
-      static unsigned long lastTouchLog = 0;
-      unsigned long nowMs = millis();
-      
-      // Log touch events (rate limited)
-      if (nowMs - lastTouchLog > 500) {
-        if (touchPoint.gesture != TouchGesture::NONE) {
-          Serial.printf("Touch -> x:%u y:%u gesture:%u\n", touchPoint.x, touchPoint.y, static_cast<uint8_t>(touchPoint.gesture));
-        } else {
-          Serial.printf("Touch -> x:%u y:%u\n", touchPoint.x, touchPoint.y);
-        }
-        lastTouchLog = nowMs;
-      }
-      
-      // Handle gestures first (swipe up/down for navigation, double tap for selection)
-      bool handled = false;
-      if (touchPoint.gesture != TouchGesture::NONE) {
-        handled = appMgr.handleMenuGesture(static_cast<uint8_t>(touchPoint.gesture));
-      }
-      
-      // If no gesture or gesture not handled, use touch position for highlighting
-      if (!handled && touchPoint.touching) {
-        appMgr.handleMenuTouch(static_cast<int16_t>(touchPoint.x), static_cast<int16_t>(touchPoint.y));
-        // Touch always updates the display to show new highlight
-        handled = true;
-      }
-      
-      if (handled) {
-        lastUpdate = 0;
-        if (!appMgr.isMenuActive()) {
+        // App mode: check for menu open gesture first
+        if (touchPoint.gesture == TouchGesture::SWIPE_RIGHT) {
+          Serial.println("Swipe RIGHT detected while in app - Opening menu");
+          appMgr.enterMenu();
           touchResetState();
+          lastDisplayUpdate = 0;
+        } else {
+          // Pass gesture to specific app handlers
+          const App* currentApp = appMgr.currentApp();
+          if (currentApp) {
+            if (strcmp(currentApp->name, "Timer") == 0) {
+              extern void timerAppHandleTouch(const TouchPoint& touchPoint);
+              timerAppHandleTouch(touchPoint);
+              lastDisplayUpdate = 0;
+            } else if (strcmp(currentApp->name, "Clock") == 0) {
+              extern void clockHandleTouch(const TouchPoint& touchPoint);
+              clockHandleTouch(touchPoint);
+            }
+          }
         }
       }
-    } else {
-      // No touch detected - reset scroll state
-      appMgr.resetTouchScroll();
-    }
-
-    if (appMgr.isMenuActive()) {
-      appMgr.draw(display);
-      delay(50); // modest refresh pacing
-      return;
+    } else if (touchPoint.gesture == TouchGesture::NONE && touchPoint.touching) {
+      // No gesture, but touching - handle continuous touch for menu navigation
+      if (appMgr.isMenuActive()) {
+        appMgr.handleMenuTouch(static_cast<int16_t>(touchPoint.x), static_cast<int16_t>(touchPoint.y));
+      }
     }
   }
 
-  if (now - lastUpdate >= UPDATE_INTERVAL_MS) {
-    lastUpdate = now;
-  appMgr.drawActiveApp(display, timeSynced, drawCurrentTime);
+  // ============================================
+  // LOWER PRIORITY: Background tasks (less frequent)
+  // ============================================
+  if (now - lastBackgroundTasks > 100) {  // Every 100ms
+    lastBackgroundTasks = now;
+    
+    // App updates
+    const App* currentApp = appMgr.currentApp();
+    if (currentApp && strcmp(currentApp->name, "Timer") == 0) {
+      extern void timerAppUpdate();
+      timerAppUpdate();
+    } else if (currentApp && strcmp(currentApp->name, "Weather") == 0) {
+      extern void weatherUpdate();
+      weatherUpdate();
+    }
+    
+    // WiFi/NTP background tasks (non-blocking)
+    handleWiFiReconnection(now, lastWiFiAttempt);
+    handleNTPRetry(now, timeSynced, gmtOffsetSec, daylightOffsetSec, lastNtpAttempt);
+  }
+
+  // ============================================
+  // Display updates (controlled refresh rate)
+  // ============================================
+  if (now - lastDisplayUpdate >= UPDATE_INTERVAL_MS) {
+    lastDisplayUpdate = now;
+    
+    // Menu rendering
+    if (appMgr.isMenuActive()) {
+      appMgr.resetTouchScroll();
+      appMgr.draw(display);
+    } else {
+      // App rendering
+      if (appMgr.consumeMenuClosedFlag()) {
+        const App* current = appMgr.currentApp();
+        if (current && current->isSpecial) {
+          resetClockDisplay(display);
+        } else {
+          display.fillScreen(COLOR_BLACK);
+        }
+      }
+      
+      appMgr.drawActiveApp(display, timeSynced, drawCurrentTime);
+    }
+    
+    display.display();
   }
 }
