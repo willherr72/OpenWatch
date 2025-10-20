@@ -322,10 +322,11 @@ bool touchRead(TouchPoint &point) {
     Serial.println("SOFT DOUBLE-TAP DETECTED!");
   }
   
-  // Debug: log ALL gestures, and all touches
+  // Debug: log ALL gestures with readable names
   if (rawPoint.gesture != 0x00) {
-    Serial.printf("GESTURE DETECTED: gesture=0x%02X, raw(%u,%u) smooth(%u,%u) mapped(%u,%u) touching=%d\n",
-                  rawPoint.gesture, rawPoint.x, rawPoint.y, smoothX, smoothY, mappedX, mappedY, rawPoint.touching);
+    Serial.printf("GESTURE DETECTED: gesture=0x%02X (%s), raw(%u,%u) smooth(%u,%u) mapped(%u,%u) touching=%d\n",
+                  rawPoint.gesture, gestureToString(point.gesture), 
+                  rawPoint.x, rawPoint.y, smoothX, smoothY, mappedX, mappedY, rawPoint.touching);
   }
   
   // Debug: log successful touch reads every 500ms

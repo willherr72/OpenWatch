@@ -49,27 +49,6 @@ SPIClass displaySPI(FSPI);
 Gc9Display display(&displaySPI, TFT_DC, TFT_CS, TFT_RST);
 
 // Sleep and button management
-#ifndef MENU_BUTTON_PIN
-#define MENU_BUTTON_PIN 21
-#endif
-
-#ifndef BUTTON_PRIMARY_PIN
-#define BUTTON_PRIMARY_PIN 0
-#endif
-
-#ifndef TOUCH_CALIB_X_OFFSET
-#define TOUCH_CALIB_X_OFFSET 0
-#endif
-#ifndef TOUCH_CALIB_Y_OFFSET
-#define TOUCH_CALIB_Y_OFFSET 0
-#endif
-#ifndef TOUCH_CALIB_X_SCALE
-#define TOUCH_CALIB_X_SCALE 1.0f
-#endif
-#ifndef TOUCH_CALIB_Y_SCALE
-#define TOUCH_CALIB_Y_SCALE 1.0f
-#endif
-
 ButtonHandler button(BUTTON_PRIMARY_PIN);               // primary button (sleep / select)
 ButtonHandler menuButton(MENU_BUTTON_PIN); // second button for menu/navigation
 SleepManager sleepMgr;
@@ -169,6 +148,8 @@ void loop() {
   unsigned long now = millis();
   static unsigned long lastBackgroundTasks = 0;
   static unsigned long lastDisplayUpdate = 0;
+  static TouchGesture lastProcessedGesture = TouchGesture::NONE;  // Track last processed gesture to avoid repeats
+  static unsigned long lastGestureTime = 0;  // Time of last processed gesture
   
   // ============================================
   // ABSOLUTE PRIORITY: Button handling ONLY
@@ -246,6 +227,66 @@ void loop() {
   }
 
   // ============================================
+  // CRITICAL: Touch input processing EVERY LOOP
+  // This must run frequently to catch double-taps!
+  // ============================================
+  TouchPoint touchPoint{};
+  bool touchReady = touchRead(touchPoint);
+  
+  if (touchReady) {
+    // Only process a gesture once - don't repeat if gesture flag persists
+    bool isNewGesture = (touchPoint.gesture != lastProcessedGesture) || 
+                        (touchPoint.gesture == TouchGesture::NONE);
+    
+    if (touchPoint.gesture != TouchGesture::NONE) {
+      lastProcessedGesture = touchPoint.gesture;
+      lastGestureTime = now;
+    } else if (now - lastGestureTime > 50) {
+      // Clear the last gesture if no new input for 50ms
+      lastProcessedGesture = TouchGesture::NONE;
+    }
+    
+    if (isNewGesture && touchPoint.gesture != TouchGesture::NONE) {
+      // New gesture detected - log it
+      extern const char* gestureToString(TouchGesture gesture);
+      Serial.printf("[GESTURE] %s at (%d, %d)\n", gestureToString(touchPoint.gesture), touchPoint.x, touchPoint.y);
+      
+      // Process gesture
+      if (appMgr.isMenuActive()) {
+        // Menu mode: handle menu gestures
+        appMgr.handleMenuGesture(static_cast<uint8_t>(touchPoint.gesture));
+        lastDisplayUpdate = 0;
+      } else {
+        // App mode: check for menu open gesture first
+        if (touchPoint.gesture == TouchGesture::SWIPE_RIGHT) {
+          Serial.println("Swipe RIGHT detected while in app - Opening menu");
+          appMgr.enterMenu();
+          touchResetState();
+          lastDisplayUpdate = 0;
+        } else {
+          // Pass gesture to specific app handlers
+          const App* currentApp = appMgr.currentApp();
+          if (currentApp) {
+            if (strcmp(currentApp->name, "Timer") == 0) {
+              extern void timerAppHandleTouch(const TouchPoint& touchPoint);
+              timerAppHandleTouch(touchPoint);
+              lastDisplayUpdate = 0;
+            } else if (strcmp(currentApp->name, "Clock") == 0) {
+              extern void clockHandleTouch(const TouchPoint& touchPoint);
+              clockHandleTouch(touchPoint);
+            }
+          }
+        }
+      }
+    } else if (touchPoint.gesture == TouchGesture::NONE && touchPoint.touching) {
+      // No gesture, but touching - handle continuous touch for menu navigation
+      if (appMgr.isMenuActive()) {
+        appMgr.handleMenuTouch(static_cast<int16_t>(touchPoint.x), static_cast<int16_t>(touchPoint.y));
+      }
+    }
+  }
+
+  // ============================================
   // LOWER PRIORITY: Background tasks (less frequent)
   // ============================================
   if (now - lastBackgroundTasks > 100) {  // Every 100ms
@@ -272,31 +313,10 @@ void loop() {
   if (now - lastDisplayUpdate >= UPDATE_INTERVAL_MS) {
     lastDisplayUpdate = now;
     
-    // Menu rendering and touch handling
+    // Menu rendering
     if (appMgr.isMenuActive()) {
-      TouchPoint touchPoint{};
-      if (touchRead(touchPoint)) {
-        bool handled = false;
-        if (touchPoint.gesture != TouchGesture::NONE) {
-          handled = appMgr.handleMenuGesture(static_cast<uint8_t>(touchPoint.gesture));
-        }
-        if (!handled && touchPoint.touching) {
-          appMgr.handleMenuTouch(static_cast<int16_t>(touchPoint.x), static_cast<int16_t>(touchPoint.y));
-          handled = true;
-        }
-        if (handled) {
-          lastDisplayUpdate = 0;
-          if (!appMgr.isMenuActive()) {
-            touchResetState();
-          }
-        }
-      } else {
-        appMgr.resetTouchScroll();
-      }
-      
-      if (appMgr.isMenuActive()) {
-        appMgr.draw(display);
-      }
+      appMgr.resetTouchScroll();
+      appMgr.draw(display);
     } else {
       // App rendering
       if (appMgr.consumeMenuClosedFlag()) {
@@ -308,30 +328,9 @@ void loop() {
         }
       }
       
-      // Touch and gesture handling for active app
-      TouchPoint touchPoint{};
-      if (touchRead(touchPoint)) {
-        // Check for right swipe gesture to open menu from any app
-        if (touchPoint.gesture == TouchGesture::SWIPE_RIGHT) {
-          Serial.println("Swipe RIGHT detected while in app - Opening menu");
-          appMgr.enterMenu();
-          touchResetState();
-        } else {
-          // Pass touch/gesture to specific app handlers
-          const App* currentApp = appMgr.currentApp();
-          if (currentApp) {
-            if (strcmp(currentApp->name, "Timer") == 0) {
-              extern void timerAppHandleTouch(const TouchPoint& touchPoint);
-              timerAppHandleTouch(touchPoint);
-            } else if (strcmp(currentApp->name, "Clock") == 0) {
-              extern void clockHandleTouch(const TouchPoint& touchPoint);
-              clockHandleTouch(touchPoint);
-            }
-          }
-        }
-      }
-      
       appMgr.drawActiveApp(display, timeSynced, drawCurrentTime);
     }
+    
+    display.display();
   }
 }

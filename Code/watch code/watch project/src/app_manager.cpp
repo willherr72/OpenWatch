@@ -107,7 +107,6 @@ void AppManager::draw(Gc9Display &display) {
     int16_t y = (display.height() - static_cast<int16_t>(h)) / 2;
     display.setCursor(x, y);
     display.print(msg);
-    display.display();
     menuBoundsValid = false;
     return;
   }
@@ -210,7 +209,6 @@ void AppManager::draw(Gc9Display &display) {
       expandedHalfH
     };
   }
-  display.display();
   menuDirty = false;
   lastRenderedMenuIndex = menuIndex;
   lastRenderedAppCount = appCount;
@@ -358,7 +356,6 @@ void AppManager::drawActiveApp(Gc9Display &display, bool &timeSynced, void (*dra
     display.setTextSize(1);
     display.setCursor(0, 0);
     display.println(F("No apps"));
-    display.display();
     return;
   }
   
@@ -385,7 +382,6 @@ void AppManager::drawActiveApp(Gc9Display &display, bool &timeSynced, void (*dra
     display.print(F("App: "));
     display.println(app->name);
     display.println(F("No draw func"));
-    display.display();
   }
 }
 

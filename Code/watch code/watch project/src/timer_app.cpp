@@ -118,59 +118,60 @@ uint32_t timerRemainingSeconds() {
 
 void timerAppHandleTouch(const TouchPoint& touchPoint) {
   // Handle gestures based on current state
-  if (touchPoint.gesture != TouchGesture::NONE) {
-    
-    if (gTimerCtx.state == TimerState::SELECTING) {
-      // In SELECTING state:
-      // - Swipe UP = previous preset (like menu navigation)
-      // - Swipe DOWN = next preset (like menu navigation)
-      // - Double tap = start timer
-      if (touchPoint.gesture == TouchGesture::SWIPE_UP) {
-        // Previous preset (cycle backwards)
-        if (gTimerCtx.presetIndex == 0) {
-          gTimerCtx.presetIndex = 2; // Wrap to last
-        } else {
-          gTimerCtx.presetIndex--;
-        }
-        gTimerCtx.targetDuration = gTimerCtx.presets[gTimerCtx.presetIndex];
-        Serial.printf("Timer: Swipe UP - preset %d\n", gTimerCtx.presetIndex);
-        return;
+  Serial.printf("Timer app received touch: gesture=0x%02X (%s), touching=%d, x=%d, y=%d, state=%d\n", 
+                static_cast<uint8_t>(touchPoint.gesture), gestureToString(touchPoint.gesture), 
+                touchPoint.touching, touchPoint.x, touchPoint.y, 
+                static_cast<int>(gTimerCtx.state));
+  
+  if (gTimerCtx.state == TimerState::SELECTING) {
+    // Handle swipe gestures for preset selection
+    if (touchPoint.gesture == TouchGesture::SWIPE_UP) {
+      // Previous preset (cycle backwards)
+      if (gTimerCtx.presetIndex == 0) {
+        gTimerCtx.presetIndex = 2; // Wrap to last
+      } else {
+        gTimerCtx.presetIndex--;
       }
-      
-      if (touchPoint.gesture == TouchGesture::SWIPE_DOWN) {
-        // Next preset (cycle forwards)
-        gTimerCtx.presetIndex = (gTimerCtx.presetIndex + 1) % 3;
-        gTimerCtx.targetDuration = gTimerCtx.presets[gTimerCtx.presetIndex];
-        Serial.printf("Timer: Swipe DOWN - preset %d\n", gTimerCtx.presetIndex);
-        return;
-      }
-      
-      if (touchPoint.gesture == TouchGesture::DOUBLE_CLICK) {
-        // Double tap to start
-        timerAppHandlePrimaryLong();
-        Serial.println("Timer: Double tap - starting");
-        return;
-      }
+      gTimerCtx.targetDuration = gTimerCtx.presets[gTimerCtx.presetIndex];
+      Serial.printf("Timer: Swipe UP - preset %d\n", gTimerCtx.presetIndex);
+      return;
     }
     
-    else if (gTimerCtx.state == TimerState::RUNNING) {
-      // In RUNNING state:
-      // - Swipe DOWN = cancel timer
-      if (touchPoint.gesture == TouchGesture::SWIPE_DOWN) {
-        timerAppHandleMenuLong();
-        Serial.println("Timer: Swipe DOWN - canceling");
-        return;
-      }
+    if (touchPoint.gesture == TouchGesture::SWIPE_DOWN) {
+      // Next preset (cycle forwards)
+      gTimerCtx.presetIndex = (gTimerCtx.presetIndex + 1) % 3;
+      gTimerCtx.targetDuration = gTimerCtx.presets[gTimerCtx.presetIndex];
+      Serial.printf("Timer: Swipe DOWN - preset %d\n", gTimerCtx.presetIndex);
+      return;
     }
     
-    else if (gTimerCtx.state == TimerState::DONE) {
-      // In DONE state:
-      // - Double tap = reset to selecting
-      if (touchPoint.gesture == TouchGesture::DOUBLE_CLICK) {
-        timerAppHandlePrimaryLong();
-        Serial.println("Timer: Double tap - resetting");
-        return;
-      }
+    // Handle long press to start timer
+    if (touchPoint.gesture == TouchGesture::LONG_PRESS) {
+      Serial.println("***LONG PRESS DETECTED - STARTING TIMER***");
+      timerAppHandlePrimaryLong();
+      Serial.println("Timer: Long press - starting");
+      return;
+    }
+  }
+  
+  else if (gTimerCtx.state == TimerState::RUNNING) {
+    // In RUNNING state:
+    // - Swipe DOWN = cancel timer
+    if (touchPoint.gesture == TouchGesture::SWIPE_DOWN) {
+      timerAppHandleMenuLong();
+      Serial.println("Timer: Swipe DOWN - canceling");
+      return;
+    }
+  }
+  
+  else if (gTimerCtx.state == TimerState::DONE) {
+    // In DONE state:
+    // - Long press = reset to selecting
+    if (touchPoint.gesture == TouchGesture::LONG_PRESS) {
+      Serial.println("***LONG PRESS DETECTED - RESETTING TIMER***");
+      timerAppHandlePrimaryLong();
+      Serial.println("Timer: Long press - resetting");
+      return;
     }
   }
 }
@@ -246,8 +247,7 @@ void drawTimer(Gc9Display &display) {
 
         display.setTextColor(COLOR_WHITE);
         drawCentered("Swipe up/down to select", display.height() - 40, 1);
-        drawCentered("Double tap to start", display.height() - 22, 1);
-        display.display();
+        drawCentered("Long press to start", display.height() - 22, 1);
       }
       renderCache.lastPresetIndex = gTimerCtx.presetIndex;
       renderCache.lastRemainingSeconds = UINT32_MAX;
@@ -292,7 +292,6 @@ void drawTimer(Gc9Display &display) {
         clearRegion(x - padding, y - padding, static_cast<int16_t>(w) + padding * 2, static_cast<int16_t>(h) + padding * 2);
         display.setCursor(x, y - y1);
         display.print(buf);
-        display.display();
         renderCache.lastRemainingSeconds = remainingSecs;
       }
       break;
@@ -302,8 +301,7 @@ void drawTimer(Gc9Display &display) {
         display.fillScreen(COLOR_BLACK);
         drawCentered("Timer", 40, 1);
         drawCentered("DONE", display.height() / 2, 3);
-        drawCentered("Double tap: reset", display.height() - 24, 1);
-        display.display();
+        drawCentered("Long press: reset", display.height() - 24, 1);
       }
       renderCache.lastRemainingSeconds = UINT32_MAX;
       break;

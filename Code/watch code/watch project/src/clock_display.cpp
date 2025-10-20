@@ -12,6 +12,7 @@ char cachedOverlay[16] = "";
 bool cachedOverlayActive = false;
 bool cachedOverlayOutline = false;
 int16_t cachedOverlayBottom = 0;
+uint32_t cachedTimerSeconds = UINT32_MAX;  // Cache for timer seconds to prevent constant redraws
 }
 
 void resetClockDisplay(Gc9Display &display) {
@@ -23,6 +24,7 @@ void resetClockDisplay(Gc9Display &display) {
   cachedOverlayActive = false;
   cachedOverlayOutline = false;
   cachedOverlayBottom = 0;
+  cachedTimerSeconds = UINT32_MAX;
   display.fillScreen(COLOR_BLACK);
 }
 
@@ -99,11 +101,20 @@ void drawCurrentTime(Gc9Display &display, bool &timeSynced) {
     snprintf(overlayText, sizeof(overlayText), "Timer %lu:%02lu", (unsigned long)m, (unsigned long)s);
     overlayActive = true;
     overlayOutline = false;
+    // Track if timer seconds changed to avoid constant redraws
+    if (remain != cachedTimerSeconds) {
+      cachedTimerSeconds = remain;
+      // Force overlay redraw by clearing the cache
+      cachedOverlayActive = false;
+    }
   } else if (timerIsDone()) {
     strncpy(overlayText, "Timer Done", sizeof(overlayText) - 1);
     overlayText[sizeof(overlayText) - 1] = '\0';
     overlayActive = true;
     overlayOutline = true;
+    cachedTimerSeconds = UINT32_MAX;
+  } else {
+    cachedTimerSeconds = UINT32_MAX;
   }
 
   if (!timeSynced) {
@@ -171,7 +182,6 @@ void drawCurrentTime(Gc9Display &display, bool &timeSynced) {
       cachedDate[sizeof(cachedDate) - 1] = '\0';
     }
     
-    display.display();
     return;
   }
 
@@ -191,7 +201,7 @@ void drawCurrentTime(Gc9Display &display, bool &timeSynced) {
 
   if (overlayActive) {
     if (!cachedOverlayActive || overlayOutline != cachedOverlayOutline || strcmp(overlayText, cachedOverlay) != 0) {
-      clearRect(0, 8, display.width(), (cachedOverlayBottom > 0 ? cachedOverlayBottom + 8 : 64));
+      clearRect(0, 0, display.width(), 100);
       display.setTextSize(1);
       int16_t bx1, by1;
       uint16_t bw, bh;
@@ -201,7 +211,7 @@ void drawCurrentTime(Gc9Display &display, bool &timeSynced) {
       int16_t pillW = static_cast<int16_t>(bw) + paddingX * 2;
       int16_t pillH = static_cast<int16_t>(bh) + paddingY * 2;
       int16_t pillX = (display.width() - pillW) / 2;
-      int16_t pillY = 18;
+      int16_t pillY = 30;
       if (pillX < 0) pillX = 0;
       if (overlayOutline) {
         display.drawRoundRect(pillX, pillY, pillW, pillH, 10, COLOR_WHITE);
@@ -245,7 +255,6 @@ void drawCurrentTime(Gc9Display &display, bool &timeSynced) {
       case WL_CONNECT_FAILED: display.print(F("CONN FAIL")); break;
       default: display.print(F("WiFi ?")); break;
     }
-    display.display();
     return;
   }
 
@@ -311,7 +320,6 @@ void drawCurrentTime(Gc9Display &display, bool &timeSynced) {
     strncpy(cachedDate, dateBuf, sizeof(cachedDate) - 1);
     cachedDate[sizeof(cachedDate) - 1] = '\0';
   }
-  display.display();
 }
 
 // Show a simple message centered
