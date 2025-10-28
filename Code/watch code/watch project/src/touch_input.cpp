@@ -221,7 +221,7 @@ void touchInit() {
   Serial.println("Initializing CST816T touch controller...");
   
   // Use MIXED mode to enable both touch coordinates and gestures (including double-click)
-  if (touchDriver.begin(Wire, TOUCH_SDA_PIN, TOUCH_SCL_PIN, TOUCH_RST_PIN, TOUCH_INT_PIN, CST816_MODE_MIXED)) {
+  if (touchDriver.begin(Wire, TOUCH_SDA_PIN, TOUCH_SCL_PIN, TOUCH_INT_PIN, CST816_MODE_MIXED)) {
     Serial.printf("CST816T initialized at address 0x%02X in MIXED mode\n", touchDriver.activeAddress());
     inputReadyTimeMs = millis() + 80; // Warm-up delay
   } else {

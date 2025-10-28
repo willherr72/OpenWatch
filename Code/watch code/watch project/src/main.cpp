@@ -88,6 +88,11 @@ void setup() {
   Serial.println(F("=== ESP32-C6 Boot ==="));
   Serial.println(F("Starting up..."));
 
+  // Set GPIO 17 to HIGH immediately
+  pinMode(17, OUTPUT);
+  digitalWrite(17, HIGH);
+  Serial.println(F("GPIO 17 set to HIGH"));
+
   // CPU already configured via board_build.f_cpu; log actual clock for confirmation
   Serial.printf("CPU Frequency currently %d MHz\n", getCpuFrequencyMhz());
 
