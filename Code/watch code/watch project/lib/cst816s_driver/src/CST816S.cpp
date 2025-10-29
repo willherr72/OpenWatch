@@ -25,15 +25,18 @@ bool CST816SDriver::begin(TwoWire &wire, int sdaPin, int sclPin, int rstPin, int
   }
 
   // Initialize I2C
+  Serial.printf("CST816T: Initializing I2C on SDA=%d, SCL=%d\n", sdaPin_, sclPin_);
   wire_->begin(sdaPin_, sclPin_);
-  wire_->setClock(400000);  // 400kHz
-  wire_->setTimeout(50);     // 50ms timeout
-
-  delay(50);  // Allow touch controller to initialize
+  wire_->setClock(100000);  // 100kHz (slower but more reliable)
+  wire_->setTimeout(100);    // 100ms timeout
+  
+  Serial.println("CST816T: I2C initialized, waiting for sensor...");
+  delay(100);  // Allow touch controller to initialize
 
   // Verify chip is present
+  Serial.println("CST816T: Attempting chip detection...");
   if (!whoAmI()) {
-    Serial.println("CST816T: Chip detection failed");
+    Serial.println("CST816T: Chip detection failed - sensor not responding");
     return false;
   }
 

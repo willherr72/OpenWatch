@@ -20,6 +20,9 @@ struct WeatherRenderCache {
 };
 
 WeatherRenderCache renderCache;
+
+// Keep WiFi client alive to prevent disconnection
+WiFiClientSecure persistentClient;
 }
 
 void weatherInit() {
@@ -89,8 +92,8 @@ bool fetchWeatherData() {
     return false;
   }
 
-  WiFiClientSecure client;
-  client.setInsecure(); // For simplicity - in production use proper certificates
+  // Use persistent client to avoid WiFi disconnection
+  persistentClient.setInsecure(); // For simplicity - in production use proper certificates
   HTTPClient http;
   
   // Step 1: Get gridpoint if we don't have it yet
@@ -100,7 +103,7 @@ bool fetchWeatherData() {
     
     Serial.println("Fetching gridpoint from: " + pointsUrl);
     
-    http.begin(client, pointsUrl);
+    http.begin(persistentClient, pointsUrl);
     http.addHeader("User-Agent", "ESP32-Weather-Watch");
     http.setTimeout(5000);  // Reduced timeout to 5s
     int code = http.GET();
@@ -150,7 +153,7 @@ bool fetchWeatherData() {
   // Step 2: Fetch forecast data
   Serial.printf("Fetching forecast from: %s\n", gWeatherCtx.gridpoint);
   
-  http.begin(client, gWeatherCtx.gridpoint);
+  http.begin(persistentClient, gWeatherCtx.gridpoint);
   http.addHeader("User-Agent", "ESP32-Weather-Watch");
   http.setTimeout(5000);  // Reduced timeout to 5s
   int code = http.GET();
