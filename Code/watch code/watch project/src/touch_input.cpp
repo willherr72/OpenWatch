@@ -220,7 +220,27 @@ void mapToDisplay(uint16_t rawX, uint16_t rawY, uint16_t &mappedX, uint16_t &map
 void touchInit() {
   Serial.println("Initializing CST816T touch controller...");
   
+  // Perform I2C scan to find devices
+  Serial.println("[I2C] Scanning for devices...");
+  Wire.begin(TOUCH_SDA_PIN, TOUCH_SCL_PIN);
+  Wire.setClock(100000);
+  int devicesFound = 0;
+  for (uint8_t addr = 1; addr < 127; addr++) {
+    Wire.beginTransmission(addr);
+    uint8_t error = Wire.endTransmission();
+    if (error == 0) {
+      Serial.printf("[I2C] Device found at address 0x%02X\n", addr);
+      devicesFound++;
+    }
+  }
+  if (devicesFound == 0) {
+    Serial.println("[I2C] No I2C devices found! Check wiring and pull-up resistors.");
+  } else {
+    Serial.printf("[I2C] Scan complete. Found %d device(s)\n", devicesFound);
+  }
+  
   // Use MIXED mode to enable both touch coordinates and gestures (including double-click)
+  // Correct parameter order: Wire, SDA, SCL, RST, INT, mode
   if (touchDriver.begin(Wire, TOUCH_SDA_PIN, TOUCH_SCL_PIN, TOUCH_RST_PIN, TOUCH_INT_PIN, CST816_MODE_MIXED)) {
     Serial.printf("CST816T initialized at address 0x%02X in MIXED mode\n", touchDriver.activeAddress());
     inputReadyTimeMs = millis() + 80; // Warm-up delay

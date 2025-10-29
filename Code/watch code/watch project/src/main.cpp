@@ -11,6 +11,7 @@
 #include "timer_app.h"
 #include "weather_app.h"
 #include "fitness_app.h"
+#include "wifi_app.h"
 #include "touch_input.h"
 
 #ifndef TFT_SCK_PIN
@@ -85,20 +86,44 @@ void setup() {
   Serial.begin(115200);
   while(!Serial && millis() < 1500) { }
   Serial.println();
-  Serial.println(F("=== ESP32-C6 Boot ==="));
+  Serial.println(F("=== ESP32-S3 Boot ==="));
   Serial.println(F("Starting up..."));
+
+  // Set GPIO 17 to HIGH immediately
+  pinMode(17, OUTPUT);
+  digitalWrite(17, HIGH);
+  Serial.println(F("GPIO 17 set to HIGH"));
 
   // CPU already configured via board_build.f_cpu; log actual clock for confirmation
   Serial.printf("CPU Frequency currently %d MHz\n", getCpuFrequencyMhz());
+
+  // Initialize SPI bus and display EARLY (second thing after Serial/GPIO)
+  Serial.println(F("Initializing display..."));
+  displaySPI.begin(TFT_SCK, TFT_MISO, TFT_MOSI, TFT_CS);
+  if (TFT_BL >= 0) {
+    pinMode(TFT_BL, OUTPUT);
+    digitalWrite(TFT_BL, HIGH);
+  }
+
+  display.begin();
+  display.setRotation(0); // 0-3 depending on mounting
+  display.fillScreen(COLOR_BLACK);
+  display.display();
+  Serial.println(F("Display initialized"));
+
+  // Initialize WiFi after display for better stability
+  initWiFi(gmtOffsetSec, daylightOffsetSec, lastNtpAttempt);
+  Serial.println(F("WiFi initialization started"));
 
   // Initialize buttons
   button.begin();
   menuButton.begin();
   
-  // Debug: Check button GPIO state
+  // Debug: Check button GPIO state - use correct pin numbers from build flags
   delay(100);
-  Serial.printf("Initial button states - Primary (GPIO 20): %d, Menu (GPIO 21): %d\n", 
-    digitalRead(20), digitalRead(21));
+  Serial.printf("Initial button states - Primary (GPIO %d): %d, Menu (GPIO %d): %d\n", 
+    BUTTON_PRIMARY_PIN, digitalRead(BUTTON_PRIMARY_PIN), 
+    MENU_BUTTON_PIN, digitalRead(MENU_BUTTON_PIN));
   
   touchInit();
   
@@ -109,37 +134,24 @@ void setup() {
   menuButton.enableWakeup();
   Serial.println(F("Wake-up configuration complete"));
 
-  // Initialize SPI bus and display
-  displaySPI.begin(TFT_SCK, TFT_MISO, TFT_MOSI, TFT_CS);
-  if (TFT_BL >= 0) {
-    pinMode(TFT_BL, OUTPUT);
-    digitalWrite(TFT_BL, HIGH);
-  }
-
-  display.begin();
-  display.setRotation(0); // 0-3 depending on mounting
-
   // Register all apps dynamically
   registerClockApp(appMgr);
   registerFitnessApp(appMgr);
   registerTimerApp(appMgr);
   registerWeatherApp(appMgr);
+  registerWiFiApp(appMgr);
   appMgr.setTouchCalibration(TOUCH_CALIB_X_OFFSET, TOUCH_CALIB_Y_OFFSET, TOUCH_CALIB_X_SCALE, TOUCH_CALIB_Y_SCALE);
   
   Serial.println(F("Registered apps with app manager"));
   
-  // Initialize display to clock with "no wifi" state
-  display.fillScreen(COLOR_BLACK);
-  display.display();
-  lastDisplayUpdate = 0; // force immediate update
-
-  // Initialize WiFi in background (NON-BLOCKING)
-  // WiFi will connect in the background while buttons remain responsive
-  initWiFi(gmtOffsetSec, daylightOffsetSec, lastNtpAttempt);
-  Serial.println(F("WiFi initialization started (non-blocking)"));
-  
   // Initialize weather app
   weatherInit();
+  
+  // Initialize WiFi app
+  wifiAppInit();
+  
+  // Force immediate display update
+  lastDisplayUpdate = 0;
   
   Serial.println(F("Boot complete"));
 }
@@ -158,34 +170,49 @@ void loop() {
   ButtonEvent primaryEvent = button.update();
   ButtonEvent menuEvent = menuButton.update();
 
-  // Handle menu button - respond to both SHORT and LONG presses to open menu
-  if (menuEvent == ButtonEvent::SHORT_PRESS || menuEvent == ButtonEvent::LONG_PRESS) {
-    if (appMgr.isMenuActive()) {
-      if (menuEvent == ButtonEvent::SHORT_PRESS) {
-        appMgr.exitMenu();
-        touchResetState();
-        lastDisplayUpdate = 0;
-      }
-    } else {
-      // Open menu on any button press
+  // Debug button events
+  if (primaryEvent != ButtonEvent::NONE) {
+    Serial.printf("[BTN] Primary: %s\n", 
+                  primaryEvent == ButtonEvent::SHORT_PRESS ? "SHORT" : "LONG");
+  }
+  if (menuEvent != ButtonEvent::NONE) {
+    Serial.printf("[BTN] Menu: %s\n", 
+                  menuEvent == ButtonEvent::SHORT_PRESS ? "SHORT" : "LONG");
+  }
+
+  // Handle menu button - SHORT press toggles menu, LONG press for navigation
+  if (appMgr.isMenuActive()) {
+    // Menu is active
+    if (menuEvent == ButtonEvent::SHORT_PRESS) {
+      Serial.println("[BTN] Exiting menu");
+      appMgr.exitMenu();
+      touchResetState();
+      lastDisplayUpdate = 0;
+    } else if (menuEvent == ButtonEvent::LONG_PRESS) {
+      Serial.println("[BTN] Menu previous");
+      appMgr.previous();
+      lastDisplayUpdate = 0;
+    }
+    
+    // Primary button navigates menu
+    if (primaryEvent == ButtonEvent::SHORT_PRESS) {
+      Serial.println("[BTN] Menu next");
+      appMgr.next();
+      lastDisplayUpdate = 0;
+    } else if (primaryEvent == ButtonEvent::LONG_PRESS) {
+      Serial.println("[BTN] Menu select");
+      appMgr.select();
+      lastDisplayUpdate = 0;
+    }
+  } else {
+    // Menu is not active
+    if (menuEvent == ButtonEvent::SHORT_PRESS || menuEvent == ButtonEvent::LONG_PRESS) {
+      Serial.println("[BTN] Opening menu");
       appMgr.enterMenu();
       touchResetState();
       lastDisplayUpdate = 0;
     }
-  }
-
-  // Menu navigation with primary button
-  if (appMgr.isMenuActive()) {
-    if (primaryEvent == ButtonEvent::SHORT_PRESS) {
-      appMgr.next();
-    } else if (primaryEvent == ButtonEvent::LONG_PRESS) {
-      appMgr.select();
-      lastDisplayUpdate = 0;
-    }
-    if (menuEvent == ButtonEvent::LONG_PRESS) {
-      appMgr.previous();
-    }
-  } else {
+    
     // App-specific button handling
     const App* currentApp = appMgr.currentApp();
     if (currentApp && strcmp(currentApp->name, "Timer") == 0) {
@@ -206,7 +233,7 @@ void loop() {
     } else {
       // Normal mode: long press primary -> sleep
       if (primaryEvent == ButtonEvent::LONG_PRESS) {
-        Serial.println(F("Long press - sleep"));
+        Serial.println(F("[BTN] Long press - initiating sleep"));
         sleepMgr.triggerSleep();
       }
     }
@@ -297,10 +324,11 @@ void loop() {
     if (currentApp && strcmp(currentApp->name, "Timer") == 0) {
       extern void timerAppUpdate();
       timerAppUpdate();
-    } else if (currentApp && strcmp(currentApp->name, "Weather") == 0) {
-      extern void weatherUpdate();
-      weatherUpdate();
     }
+    
+    // Weather updates - run in background regardless of active app
+    extern void weatherUpdate();
+    weatherUpdate();
     
     // WiFi/NTP background tasks (non-blocking)
     handleWiFiReconnection(now, lastWiFiAttempt);
