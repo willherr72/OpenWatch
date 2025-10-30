@@ -36,6 +36,7 @@ private:
   unsigned long lastDebounceTime;
   unsigned long pressStartTime;
   bool isPressed;
+  unsigned long lastDebugPrint = 0;
   
 public:
   ButtonHandler(uint8_t buttonPin = BUTTON_PIN);
@@ -43,4 +44,5 @@ public:
   ButtonEvent update();
   bool isButtonPressed() const;
   void enableWakeup();
+  void printDebugStatus();
 };
