@@ -136,6 +136,22 @@
 				"$platformio"
 			],
 			"group": "build"
+		},
+		{
+			"label": "Monitor ESP32",
+			"type": "shell",
+			"command": "~/.platformio/penv/Scripts/platformio",
+			"args": [
+				"device",
+				"monitor",
+				"--environment",
+				"esp32s3",
+				"--rts",
+				"0",
+				"--dtr",
+				"0"
+			],
+			"isBackground": true
 		}
 	]
 }
