@@ -1,201 +1,199 @@
 #include "wifi_handler.h"
 #include "secrets.h"
+#include <Arduino.h>
 #include <WiFi.h>
+#include <time.h>
+
+static const char *TAG = "WiFi";
 
 // Local constants
-constexpr unsigned long WIFI_RETRY_INTERVAL = 60000; // 60s - increased to avoid frequent reconnection attempts
+constexpr unsigned long WIFI_RETRY_INTERVAL = 60000; // 60s
 constexpr unsigned long NTP_RETRY_INTERVAL = 20000;  // 20s
+constexpr unsigned long WIFI_CONNECT_TIMEOUT = 15000; // 15s timeout for connection
 
 void initWiFi(long gmtOffsetSec, int daylightOffsetSec, unsigned long &lastNtpAttempt) {
-  Serial.println(F("=== WIFI INIT START ==="));
+  delay(500);  // Ensure Serial is ready
+  Serial.println(F("\n[WiFi] ========== WIFI INIT START (Arduino WiFi) =========="));
+  delay(200);
+  
   Serial.printf("WiFi SSID: %s\n", WIFI_SSID);
-  Serial.printf("WiFi Password length: %d\n", strlen(WIFI_PASS));
+  size_t pass_len = strlen(WIFI_PASS);
+  Serial.printf("WiFi Password length: %d\n", pass_len);
   
-  // Complete WiFi driver reset for ESP32-S3
-  WiFi.disconnect(true);  // Disconnect and erase old config
-  WiFi.mode(WIFI_OFF);     // Turn off WiFi completely
-  delay(500);              // Wait for WiFi to fully shut down
-  
-  // Reinitialize WiFi properly
-  WiFi.mode(WIFI_STA);
-  WiFi.persistent(false);  // Don't save credentials to flash
-  WiFi.setAutoReconnect(true);
-  WiFi.setSleep(false);    // Disable WiFi sleep for better stability
-  
-  Serial.print(F("Connecting to ")); 
-  Serial.println(F(WIFI_SSID));
-  
-  // For open networks (empty password), use WiFi.begin with just SSID
-  if (strlen(WIFI_PASS) == 0) {
-    Serial.println(F("Open network detected - connecting without password"));
-    WiFi.begin(WIFI_SSID);
-  } else {
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
+  // Disconnect if already connected
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println(F("[WiFi] Already connected, disconnecting..."));
+    WiFi.disconnect();
+    delay(500);
   }
   
-  // Wait up to 10 seconds for initial connection (prioritize WiFi on boot)
-  Serial.println(F("Waiting for WiFi connection (up to 10 seconds)..."));
+  // Set WiFi mode to Station
+  WiFi.mode(WIFI_STA);
+  Serial.println(F("[WiFi] Mode: STA (Station)"));
+  
+  // Set hostname
+  WiFi.setHostname("OpenWatch");
+  
+  // Enable auto-reconnect
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(false);  // Don't save WiFi config to flash
+  
+  // Disable power saving for better connectivity
+  WiFi.setSleep(false);
+  Serial.println(F("[WiFi] Auto-reconnect: ON, Power save: OFF"));
+  
+  // Begin connecting - simple Arduino WiFi API
+  Serial.println(F("[WiFi] Connecting..."));
+  
+  wl_status_t status;
+  if (pass_len == 0) {
+    // Open network - no password
+    Serial.println(F("[WiFi] Connecting to OPEN network (no password)"));
+    status = WiFi.begin(WIFI_SSID);
+  } else {
+    // Secured network - with password
+    Serial.println(F("[WiFi] Connecting to WPA2 network"));
+    status = WiFi.begin(WIFI_SSID, WIFI_PASS);
+  }
+  
+  // Wait for connection with timeout
+  Serial.print(F("[WiFi] Waiting for connection (max 15s)"));
   unsigned long startTime = millis();
   int dotCount = 0;
   
-  while (WiFi.status() != WL_CONNECTED && (millis() - startTime) < 10000) {
+  while (WiFi.status() != WL_CONNECTED && (millis() - startTime) < WIFI_CONNECT_TIMEOUT) {
     delay(500);
     Serial.print(".");
     dotCount++;
-    if (dotCount >= 20) {
+    if (dotCount >= 6) {
       Serial.println();
+      Serial.print(F("[WiFi] Still connecting"));
       dotCount = 0;
     }
   }
   Serial.println();
   
+  // Check if connected
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println(F("WiFi CONNECTED!"));
-    Serial.printf("IP Address: %s\n", WiFi.localIP().toString().c_str());
-    Serial.printf("Signal Strength: %d dBm\n", WiFi.RSSI());
+    Serial.println(F("\n[WiFi] ✓ CONNECTED!"));
+    Serial.printf("[WiFi] IP: %s\n", WiFi.localIP().toString().c_str());
+    Serial.printf("[WiFi] RSSI: %d dBm\n", WiFi.RSSI());
+    Serial.printf("[WiFi] Gateway: %s\n", WiFi.gatewayIP().toString().c_str());
+    Serial.printf("[WiFi] Subnet: %s\n", WiFi.subnetMask().toString().c_str());
+    Serial.printf("[WiFi] DNS: %s\n", WiFi.dnsIP().toString().c_str());
     
-    // Configure NTP immediately
-    Serial.println(F("Configuring NTP time sync..."));
-    configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+    // Configure NTP with timezone
+    Serial.println(F("[WiFi] Configuring NTP..."));
+    Serial.printf("[WiFi] Timezone: GMT%+d (DST: %d)\n", gmtOffsetSec/3600, daylightOffsetSec);
+    configTime(gmtOffsetSec, daylightOffsetSec, "pool.ntp.org", "time.google.com");
     lastNtpAttempt = millis();
     
-    // Wait a bit for NTP sync
-    delay(1000);
-    time_t now = time(nullptr);
-    if (now > 100000) {
-      Serial.println(F("NTP time synced successfully!"));
-      struct tm timeinfo;
-      localtime_r(&now, &timeinfo);
-      Serial.printf("Current UTC time: %04d-%02d-%02d %02d:%02d:%02d\n",
-                    timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
-                    timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
-    } else {
-      Serial.println(F("NTP sync in progress..."));
+    // Wait for NTP sync
+    Serial.print(F("[WiFi] Syncing time"));
+    int ntp_attempts = 0;
+    time_t now = 0;
+    while (ntp_attempts < 10) {
+      delay(500);
+      Serial.print(".");
+      now = time(nullptr);
+      if (now > 100000) {
+        Serial.println();
+        Serial.println(F("[WiFi] ✓ NTP synced!"));
+        struct tm timeinfo;
+        localtime_r(&now, &timeinfo);
+        Serial.printf("[WiFi] Time: %04d-%02d-%02d %02d:%02d:%02d\n",
+                      timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                      timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+        break;
+      }
+      ntp_attempts++;
     }
+    if (now <= 100000) {
+      Serial.println();
+      Serial.println(F("[WiFi] ⚠ NTP sync failed (will retry later)"));
+    }
+    
+    Serial.println(F("========== WIFI INIT END (SUCCESS) ==========\n"));
   } else {
-    Serial.println(F("WiFi connection FAILED"));
-    Serial.printf("Final status: %d - ", WiFi.status());
+    // Failed to connect
+    Serial.println(F("\n[WiFi] ✗ CONNECTION FAILED"));
+    Serial.printf("[WiFi] Status: %d\n", WiFi.status());
+    
+    // Decode status
     switch(WiFi.status()) {
-      case WL_NO_SHIELD: Serial.println("NO_SHIELD"); break;
-      case WL_IDLE_STATUS: Serial.println("IDLE"); break;
-      case WL_NO_SSID_AVAIL: Serial.println("NO_SSID_AVAIL (Network not found)"); break;
-      case WL_SCAN_COMPLETED: Serial.println("SCAN_COMPLETED"); break;
-      case WL_CONNECT_FAILED: Serial.println("CONNECT_FAILED (Wrong password?)"); break;
-      case WL_CONNECTION_LOST: Serial.println("CONNECTION_LOST"); break;
-      case WL_DISCONNECTED: Serial.println("DISCONNECTED"); break;
-      default: Serial.println("UNKNOWN"); break;
+      case WL_NO_SSID_AVAIL:
+        Serial.println(F("[WiFi] Reason: SSID not found"));
+        break;
+      case WL_CONNECT_FAILED:
+        Serial.println(F("[WiFi] Reason: Connection failed (wrong password?)"));
+        break;
+      case WL_CONNECTION_LOST:
+        Serial.println(F("[WiFi] Reason: Connection lost"));
+        break;
+      case WL_DISCONNECTED:
+        Serial.println(F("[WiFi] Reason: Disconnected"));
+        break;
+      default:
+        Serial.println(F("[WiFi] Reason: Unknown"));
+        break;
     }
     
-    // Scan for networks to verify SSID is visible
-    Serial.println(F("[WiFi] Scanning for networks..."));
-    int n = WiFi.scanNetworks();
-    if (n == 0) {
-      Serial.println(F("[WiFi] No networks found"));
-    } else {
-      Serial.printf("[WiFi] Found %d networks:\n", n);
-      bool foundTarget = false;
-      for (int i = 0; i < n && i < 10; ++i) {  // Show first 10
-        String ssid = WiFi.SSID(i);
-        Serial.printf("  %d: %s (RSSI: %d, Ch: %d, Enc: %s)\n", 
-                     i + 1, ssid.c_str(), WiFi.RSSI(i), WiFi.channel(i),
-                     WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? "OPEN" : "ENCRYPTED");
-        if (ssid == WIFI_SSID) {
-          foundTarget = true;
-          Serial.printf("  ^^ TARGET NETWORK FOUND! RSSI: %d\n", WiFi.RSSI(i));
-        }
-      }
-      if (!foundTarget) {
-        Serial.printf("[WiFi] WARNING: Target network '%s' NOT visible in scan!\n", WIFI_SSID);
-      }
-    }
-    WiFi.scanDelete();  // Clean up
-    
-    Serial.println(F("Will retry in background..."));
+    Serial.println(F("[WiFi] Device will retry in background"));
+    Serial.println(F("========== WIFI INIT END (FAILED - WILL RETRY) ==========\n"));
   }
-  
-  Serial.println(F("=== WIFI INIT END ==="));
 }
 
 bool isWiFiConnected() {
-  return WiFi.status() == WL_CONNECTED;
+  return (WiFi.status() == WL_CONNECTED);
 }
 
 void handleWiFiReconnection(unsigned long now, unsigned long &lastWiFiAttempt) {
-  wl_status_t status = WiFi.status();
+  static unsigned long lastStatusPrint = 0;
+  static unsigned long disconnectedSince = 0;
+  static unsigned long lastReconnectAttempt = 0;
+  
+  bool connected = isWiFiConnected();
   
   // Print WiFi status periodically for debugging
-  static unsigned long lastStatusPrint = 0;
-  if (now - lastStatusPrint > 10000) {  // Every 10 seconds (less spammy)
-    if (status == WL_CONNECTED) {
-      Serial.printf("[WiFi] Connected, IP: %s, Signal: %d dBm\n", 
+  if (now - lastStatusPrint > 10000) {  // Every 10 seconds
+    if (connected) {
+      Serial.printf("[WiFi] ✓ Connected, IP: %s, Signal: %d dBm\n", 
                     WiFi.localIP().toString().c_str(), WiFi.RSSI());
     } else {
-      Serial.printf("[WiFi] Disconnected - ");
-      switch(status) {
-        case WL_NO_SHIELD: Serial.println("NO_SHIELD"); break;
-        case WL_IDLE_STATUS: Serial.println("IDLE (connecting...)"); break;
-        case WL_NO_SSID_AVAIL: Serial.println("NO_SSID_AVAIL"); break;
-        case WL_SCAN_COMPLETED: Serial.println("SCAN_COMPLETED"); break;
-        case WL_CONNECT_FAILED: Serial.println("CONNECT_FAILED"); break;
-        case WL_CONNECTION_LOST: Serial.println("CONNECTION_LOST"); break;
-        case WL_DISCONNECTED: Serial.println("DISCONNECTED"); break;
-        default: Serial.println("UNKNOWN"); break;
-      }
+      Serial.println(F("[WiFi] ✗ Not connected (retrying...)"));
     }
     lastStatusPrint = now;
   }
   
-  // Smart reconnection - rely on WiFi auto-reconnect, just monitor status
-  // WiFi.setAutoReconnect(true) was set in initWiFi, so WiFi handles reconnection
-  // We only manually intervene if stuck in a failed state for too long
-  static unsigned long lastReconnectAttempt = 0;
-  static unsigned long disconnectedSince = 0;
-  
-  // Track how long we've been disconnected
-  if (status != WL_CONNECTED && status != WL_IDLE_STATUS) {
+  // Track disconnection time
+  if (!connected) {
     if (disconnectedSince == 0) {
       disconnectedSince = now;
+      Serial.println(F("[WiFi] Disconnected - will retry connection"));
     }
   } else {
-    disconnectedSince = 0;  // Reset if connected or connecting
+    disconnectedSince = 0;  // Reset on connection
   }
   
-  // Only manually intervene if disconnected for more than 2 minutes and not trying
-  // This prevents interfering with auto-reconnect
+  // Aggressive reconnect - try every 30 seconds if disconnected
   if (disconnectedSince > 0 && 
-      (now - disconnectedSince > 120000) &&  // Stuck for 2 minutes
-      status != WL_IDLE_STATUS &&  // Not currently trying to connect
-      (now - lastReconnectAttempt > 30000)) {  // Don't spam reconnects
+      (now - lastReconnectAttempt > 30000)) {  // Every 30 seconds
     
-    Serial.println(F("[WiFi] Stuck disconnected for >2min, forcing reconnect..."));
-    WiFi.disconnect(false);  // Don't erase credentials
-    delay(500);
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    Serial.println(F("[WiFi] [BG] Attempting reconnect..."));
+    WiFi.reconnect();
     lastReconnectAttempt = now;
-    disconnectedSince = 0;  // Reset timer
   }
   
-  // Configure NTP when connected (only once)
-  static bool ntpConfigured = false;
-  if (status == WL_CONNECTED && !ntpConfigured) {
-    Serial.println(F("[WiFi] Connected! Configuring NTP..."));
-    configTime(0, 0, "pool.ntp.org", "time.nist.gov");
-    ntpConfigured = true;
-    lastWiFiAttempt = now;
-  }
-  
-  // Reset NTP flag if disconnected
-  if (status != WL_CONNECTED && ntpConfigured) {
-    ntpConfigured = false;
-  }
+  // Note: NTP timezone configuration is done in initWiFi() and handleNTPRetry()
+  // No need to reconfigure here as it would use wrong timezone (UTC)
 }
 
 void handleNTPRetry(unsigned long now, bool timeSynced, long gmtOffsetSec, int daylightOffsetSec, unsigned long &lastNtpAttempt) {
   // Retry NTP configuration if still not synced
-  if (!timeSynced && WiFi.status() == WL_CONNECTED && (now - lastNtpAttempt > NTP_RETRY_INTERVAL)) {
+  if (!timeSynced && isWiFiConnected() && (now - lastNtpAttempt > NTP_RETRY_INTERVAL)) {
     Serial.println(F("Retry NTP config."));
-    // Configure for UTC time - timezone handled manually in display code
-    configTime(0, 0, "pool.ntp.org", "time.google.com");
+    // Configure with timezone and DST
+    configTime(gmtOffsetSec, daylightOffsetSec, "pool.ntp.org", "time.nist.gov");
     lastNtpAttempt = now;
   }
 }
