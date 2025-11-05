@@ -10,7 +10,7 @@
 #include "app_manager.h"
 #include "timer_app.h"
 #include "weather_app.h"
-#include "fitness_app.h"
+#include "altimeter_app.h"
 #include "wifi_app.h"
 #include "touch_input.h"
 
@@ -61,12 +61,20 @@ bool timeSynced = false;
 unsigned long lastWiFiAttempt = 0;
 unsigned long lastNtpAttempt = 0;
 unsigned long lastWiFiCheckTime = 0;  // For throttling WiFi operations
-// Timezone configuration for Central Time Zone
-// October 8, 2025 is during Daylight Saving Time (CDT = UTC-5 = -18000 seconds)
-// DST ends first Sunday in November (Nov 2, 2025)
-// Note: Using direct UTC-5 offset since automatic DST detection was unreliable
-long gmtOffsetSec = -18000;     // CDT is UTC-5 (-5 * 3600 = -18000 seconds)  
-int daylightOffsetSec = 0;      // Not using DST offset since we're setting CDT directly
+
+// ═══════════════════════════════════════════════════════════════════════
+// TIMEZONE CONFIGURATION - Change timezone here
+// ═══════════════════════════════════════════════════════════════════════
+// Central Standard Time (CST) = UTC-6 (DST ended Nov 2, 2025)
+const long TIMEZONE_OFFSET_SEC = -21600;  // -6 hours * 3600 = -21600 seconds
+// 
+// Other common US timezones:
+// CDT (Central Daylight Time) = -18000  (UTC-5)
+// EST (Eastern Standard Time) = -18000  (UTC-5)  
+// EDT (Eastern Daylight Time) = -14400  (UTC-4)
+// PST (Pacific Standard Time) = -28800  (UTC-8)
+// PDT (Pacific Daylight Time) = -25200  (UTC-7)
+// ═══════════════════════════════════════════════════════════════════════
 
 // Register the clock app with the app manager
 void registerClockApp(AppManager& appManager) {
@@ -111,8 +119,13 @@ void setup() {
   display.display();
   Serial.println(F("Display initialized"));
 
+  // Initialize I2C for sensors (BMP280, touch controller, etc.)
+  Serial.println(F("Initializing I2C..."));
+  Wire.begin(TOUCH_SDA_PIN, TOUCH_SCL_PIN);  // SDA=8, SCL=9 (shared with sensors)
+  Serial.printf("I2C initialized on SDA=%d, SCL=%d\n", TOUCH_SDA_PIN, TOUCH_SCL_PIN);
+  
   // Initialize WiFi after display for better stability
-  initWiFi(gmtOffsetSec, daylightOffsetSec, lastNtpAttempt);
+  initWiFi(TIMEZONE_OFFSET_SEC, 0, lastNtpAttempt);
   Serial.println(F("WiFi initialization started"));
 
   // Initialize buttons
@@ -136,7 +149,7 @@ void setup() {
 
   // Register all apps dynamically
   registerClockApp(appMgr);
-  registerFitnessApp(appMgr);
+  registerAltimeterApp(appMgr);
   registerTimerApp(appMgr);
   registerWeatherApp(appMgr);
   registerWiFiApp(appMgr);
@@ -332,7 +345,7 @@ void loop() {
     
     // WiFi/NTP background tasks (non-blocking)
     handleWiFiReconnection(now, lastWiFiAttempt);
-    handleNTPRetry(now, timeSynced, gmtOffsetSec, daylightOffsetSec, lastNtpAttempt);
+    handleNTPRetry(now, timeSynced, TIMEZONE_OFFSET_SEC, 0, lastNtpAttempt);
   }
 
   // ============================================

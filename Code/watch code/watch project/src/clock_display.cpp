@@ -37,10 +37,9 @@ bool fetchLocalTime(struct tm &out, uint32_t timeoutMs) {
   do {
     now = time(nullptr);
     if (now > 100000) { // plausible epoch
-      // Manual timezone adjustment for Central Daylight Time (UTC-5)
-      // October 8, 2025 is still in DST, so we subtract 5 hours (18000 seconds)
-      now -= 18000;  // Convert UTC to CDT (UTC-5)
-      tp = gmtime(&now);  // Use gmtime instead of localtime to avoid double timezone conversion
+      // configTime() already set the timezone, so use localtime_r
+      // which applies the timezone offset configured in main.cpp
+      tp = localtime(&now);
       if (tp) { out = *tp; return true; }
     }
     delay(50);
