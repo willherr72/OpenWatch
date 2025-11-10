@@ -339,6 +339,14 @@ void wifiAppHandleButton(int buttonEvent) {
 }
 
 void wifiAppReset(Gc9Display &display) {
+  // Enable WiFi when app is opened (it starts in OFF mode to save power)
+  if (WiFi.getMode() == WIFI_OFF) {
+    Serial.println("[WiFi App] Enabling WiFi...");
+    WiFi.mode(WIFI_STA);
+    WiFi.setSleep(false);
+    delay(100);  // Give WiFi time to initialize
+  }
+  
   wifiAppInit();
 }
 

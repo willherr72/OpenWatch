@@ -1,6 +1,6 @@
 #pragma once
 #include <Arduino.h>
-#include "display_adapter.h"
+#include <Adafruit_GC9A01A.h>
 
 enum class SleepState {  //Sleep state of esp
   AWAKE,
@@ -16,9 +16,9 @@ public:
   SleepManager();
   void triggerSleep();
   bool updateCountdown();
-  void goToSleep(Gc9Display &display);
+  void goToSleep(Adafruit_GC9A01A &display);
   void wakeUp();
   SleepState getState() const;
-  void showWakeMessage(Gc9Display &display);
+  void showWakeMessage(Adafruit_GC9A01A &display);
   bool handleWakeupReason();
 };

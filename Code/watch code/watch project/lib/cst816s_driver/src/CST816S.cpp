@@ -22,35 +22,50 @@ bool CST816SDriver::begin(TwoWire &wire, int sdaPin, int sclPin, int rstPin, int
   if (rstPin_ >= 0) {
     pinMode(rstPin_, OUTPUT);
     reset();
+    delay(50);  // Wait for reset to complete
+  } else {
+    // No hardware reset available - try software wakeup
+    delay(30);  // Give chip time to boot
   }
 
-  // Initialize I2C
-  Serial.printf("CST816T: Initializing I2C on SDA=%d, SCL=%d\n", sdaPin_, sclPin_);
-  wire_->begin(sdaPin_, sclPin_);
-  wire_->setClock(100000);  // 100kHz (slower but more reliable)
+  // I2C should already be initialized by caller, just verify settings
+  wire_->setClock(100000);  // 100kHz for reliability
   wire_->setTimeout(100);    // 100ms timeout
   
-  Serial.println("CST816T: I2C initialized, waiting for sensor...");
-  delay(100);  // Allow touch controller to initialize
-
-  // Verify chip is present
-  Serial.println("CST816T: Attempting chip detection...");
-  if (!whoAmI()) {
-    Serial.println("CST816T: Chip detection failed - sensor not responding");
+  // Try to detect chip with retries
+  int attempts = 0;
+  const int MAX_ATTEMPTS = 3;
+  bool detected = false;
+  
+  while (attempts < MAX_ATTEMPTS && !detected) {
+    attempts++;
+    if (whoAmI()) {
+      detected = true;
+      break;
+    }
+    if (attempts < MAX_ATTEMPTS) {
+      delay(50);  // Wait before retry
+    }
+  }
+  
+  if (!detected) {
+    Serial.println("CST816T: Chip detection failed after retries");
+    i2cReady_ = false;
     return false;
   }
 
   // Read and display firmware version
   uint8_t revision = readRevision();
-  Serial.printf("CST816T: Initialized, FW version: 0x%02X\n", revision);
+  Serial.printf("CST816T: FW version 0x%02X\n", revision);
 
-  // Disable auto-sleep
+  // Disable auto-sleep to keep touch active
   stopAutoSleep();
 
   // Set touch mode
   setMode(mode_);
 
   i2cReady_ = true;
+  loggedFailure_ = false;  // Reset failure flag
   return true;
 }
 
@@ -80,11 +95,11 @@ bool CST816SDriver::whoAmI() {
   uint8_t chipId;
   if (readRegister(CST816_REG_CHIP_ID, chipId)) {
     if (chipId == 0xB5) {  // CST816T chip ID
-      Serial.println("CST816T: Chip detected successfully");
       return true;
-    } else {
-      Serial.printf("CST816T: Unexpected chip ID: 0x%02X (expected 0xB5)\n", chipId);
     }
+    // Some variants might have different IDs but still work
+    Serial.printf("CST816T: Note - Chip ID 0x%02X (expected 0xB5)\n", chipId);
+    return (chipId != 0x00 && chipId != 0xFF);  // Accept non-default values
   }
   return false;
 }
@@ -189,31 +204,42 @@ bool CST816SDriver::readRegister(uint8_t reg, uint8_t &value) {
 }
 
 bool CST816SDriver::readRegisters(uint8_t reg, uint8_t *buffer, size_t length) {
-  wire_->beginTransmission(activeAddress_);
-  wire_->write(reg);
-  if (wire_->endTransmission(false) != 0) {
-    if (!loggedFailure_) {
-      Serial.println("CST816T: I2C write failed");
-      loggedFailure_ = true;
+  // Try reading with retry logic for better reliability
+  const int MAX_RETRIES = 2;
+  
+  for (int attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    wire_->beginTransmission(activeAddress_);
+    wire_->write(reg);
+    
+    if (wire_->endTransmission(false) != 0) {
+      if (attempt == MAX_RETRIES - 1 && !loggedFailure_) {
+        Serial.println("CST816T: I2C write failed after retries");
+        loggedFailure_ = true;
+      }
+      delayMicroseconds(100);  // Brief delay before retry
+      continue;
     }
-    return false;
-  }
 
-  size_t received = wire_->requestFrom(activeAddress_, (uint8_t)length);
-  if (received != length) {
-    if (!loggedFailure_) {
-      Serial.printf("CST816T: I2C read failed (got %d, expected %d)\n", received, length);
-      loggedFailure_ = true;
+    size_t received = wire_->requestFrom(activeAddress_, (uint8_t)length);
+    if (received != length) {
+      if (attempt == MAX_RETRIES - 1 && !loggedFailure_) {
+        Serial.printf("CST816T: I2C read failed (got %d, expected %d)\n", received, length);
+        loggedFailure_ = true;
+      }
+      delayMicroseconds(100);  // Brief delay before retry
+      continue;
     }
-    return false;
-  }
 
-  for (size_t i = 0; i < length; i++) {
-    buffer[i] = wire_->read();
+    // Success - read the data
+    for (size_t i = 0; i < length; i++) {
+      buffer[i] = wire_->read();
+    }
+    
+    loggedFailure_ = false;  // Reset failure flag on success
+    return true;
   }
-
-  loggedFailure_ = false;  // Reset failure flag on success
-  return true;
+  
+  return false;  // All retries failed
 }
 
 bool CST816SDriver::writeRegister(uint8_t reg, uint8_t value) {

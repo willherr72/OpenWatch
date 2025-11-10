@@ -142,8 +142,6 @@ struct DoubleTapDetector {
         if (distance < TAP_RADIUS) {
           // This looks like a double-tap! Record it
           doubleTapDetected = true;
-          Serial.printf("DOUBLE-TAP DETECTED: first tap at (%u,%u), second tap at (%u,%u), distance=%d\n", 
-                        lastTouchX, lastTouchY, x, y, distance);
           lastTouchEndTime = 0;  // Reset to avoid triple-taps
           return true;
         }
@@ -163,11 +161,9 @@ struct DoubleTapDetector {
       if (tapDuration <= TAP_TIME_MS) {
         // This was a valid tap, record end time for double-tap window
         lastTouchEndTime = now;
-        Serial.printf("TAP REGISTERED: duration=%lu ms at (%u,%u)\n", tapDuration, sx0, sy0);
       } else {
         // Tap was too long, probably a drag - reset double-tap state
         lastTouchEndTime = 0;
-        Serial.printf("LONG PRESS/DRAG (not a tap): duration=%lu ms\n", tapDuration);
       }
     }
     
@@ -218,40 +214,41 @@ void mapToDisplay(uint16_t rawX, uint16_t rawY, uint16_t &mappedX, uint16_t &map
 }
 
 void touchInit() {
-  Serial.println("Initializing CST816T touch controller...");
+  Serial.println("[Touch] Initializing CST816T touch controller...");
   
-  // Perform I2C scan to find devices
-  Serial.println("[I2C] Scanning for devices...");
+  // Initialize I2C bus
   Wire.begin(TOUCH_SDA_PIN, TOUCH_SCL_PIN);
-  Wire.setClock(100000);
-  int devicesFound = 0;
-  for (uint8_t addr = 1; addr < 127; addr++) {
-    Wire.beginTransmission(addr);
-    uint8_t error = Wire.endTransmission();
-    if (error == 0) {
-      Serial.printf("[I2C] Device found at address 0x%02X\n", addr);
-      devicesFound++;
-    }
-  }
-  if (devicesFound == 0) {
-    Serial.println("[I2C] No I2C devices found! Check wiring and pull-up resistors.");
-  } else {
-    Serial.printf("[I2C] Scan complete. Found %d device(s)\n", devicesFound);
+  Wire.setClock(100000);  // Start conservative at 100kHz
+  Wire.setTimeout(100);    // 100ms timeout
+  
+  // Try to initialize - quick attempt to not slow boot
+  const int MAX_RETRIES = 1;  // Reduced from 3 to speed up boot
+  bool success = false;
+  
+  for (int attempt = 1; attempt <= MAX_RETRIES && !success; attempt++) {
+    // Use MIXED mode to enable both touch coordinates and gestures
+    success = touchDriver.begin(Wire, TOUCH_SDA_PIN, TOUCH_SCL_PIN, TOUCH_RST_PIN, TOUCH_INT_PIN, CST816_MODE_MIXED);
   }
   
-  // Use MIXED mode to enable both touch coordinates and gestures (including double-click)
-  // Correct parameter order: Wire, SDA, SCL, RST, INT, mode
-  if (touchDriver.begin(Wire, TOUCH_SDA_PIN, TOUCH_SCL_PIN, TOUCH_RST_PIN, TOUCH_INT_PIN, CST816_MODE_MIXED)) {
-    Serial.printf("CST816T initialized at address 0x%02X in MIXED mode\n", touchDriver.activeAddress());
-    inputReadyTimeMs = millis() + 80; // Warm-up delay
+  if (success) {
+    Serial.printf("[Touch] SUCCESS! Initialized at address 0x%02X in MIXED mode\n", touchDriver.activeAddress());
+    inputReadyTimeMs = millis() + 100; // Warm-up delay
   } else {
-    Serial.println("CST816T init FAILED");
+    Serial.println("[Touch] FAILED - Touch controller not detected");
+    Serial.println("[Touch] Hardware fix needed:");
+    Serial.println("[Touch]   1. Check SDA/SCL connections (GPIO 8, 9)");
+    Serial.println("[Touch]   2. Add 4.7K pull-up resistors on SDA & SCL");
+    Serial.println("[Touch]   3. Verify CST816S power (should be 3.3V)");
+    Serial.println("[Touch]   4. Check I2C address (should be 0x15)");
+    // Don't block boot - let the system continue with button input only
   }
 }
 
 bool touchRead(TouchPoint &point) {
   static unsigned long lastProbeMs = 0;
   static unsigned long lastDebugMs = 0;
+  static unsigned long lastRecoveryAttempt = 0;
+  static int failureCount = 0;
   constexpr unsigned long kPollIntervalMs = 30;
   unsigned long now = millis();
   
@@ -263,19 +260,21 @@ bool touchRead(TouchPoint &point) {
   point.gesture = TouchGesture::NONE;
   point.touching = false;
   
-  // Debug logging every 5 seconds when no touch
-  if (now - lastDebugMs > 5000) {
-    Serial.printf("Touch: ready=%d, warmup=%d\n", touchDriver.isReady(), now >= inputReadyTimeMs);
-    lastDebugMs = now;
-  }
-  
   if (now < inputReadyTimeMs) {
     lastDeliveredTouch = false;
     return false;
   }
   
+  // Auto-recovery if driver not ready
   if (!touchDriver.isReady()) {
-    Serial.println("Touch: Driver not ready!");
+    failureCount++;
+    // Only try recovery every 5 seconds to avoid spam
+    if (now - lastRecoveryAttempt > 5000) {
+      Serial.println("[Touch] Driver not ready - attempting recovery...");
+      touchDriver.begin(Wire, TOUCH_SDA_PIN, TOUCH_SCL_PIN, TOUCH_RST_PIN, TOUCH_INT_PIN, CST816_MODE_MIXED);
+      lastRecoveryAttempt = now;
+      inputReadyTimeMs = now + 100;  // Give it time to stabilize
+    }
     lastDeliveredTouch = false;
     return false;
   }
@@ -339,22 +338,12 @@ bool touchRead(TouchPoint &point) {
   if (doubleTapDetector.update(mappedX, mappedY, rawPoint.touching)) {
     // Double-tap detected - override hardware gesture
     point.gesture = TouchGesture::DOUBLE_CLICK;
-    Serial.println("SOFT DOUBLE-TAP DETECTED!");
   }
   
-  // Debug: log ALL gestures with readable names
-  if (rawPoint.gesture != 0x00) {
-    Serial.printf("GESTURE DETECTED: gesture=0x%02X (%s), raw(%u,%u) smooth(%u,%u) mapped(%u,%u) touching=%d\n",
-                  rawPoint.gesture, gestureToString(point.gesture), 
-                  rawPoint.x, rawPoint.y, smoothX, smoothY, mappedX, mappedY, rawPoint.touching);
-  }
-  
-  // Debug: log successful touch reads every 500ms
-  static unsigned long lastTouchDebugMs = 0;
-  if (now - lastTouchDebugMs > 500 && rawPoint.touching) {
-    Serial.printf("Touch OK: raw(%u,%u) smooth(%u,%u) mapped(%u,%u) gesture=%u\n",
-                  rawPoint.x, rawPoint.y, smoothX, smoothY, mappedX, mappedY, rawPoint.gesture);
-    lastTouchDebugMs = now;
+  // Reset failure count on successful read
+  if (failureCount > 0) {
+    Serial.println("[Touch] Recovery successful!");
+    failureCount = 0;
   }
   
   return true;
