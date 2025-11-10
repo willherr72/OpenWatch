@@ -166,7 +166,6 @@ void setup() {
     }
     Serial.flush();
 
-<<<<<<< HEAD
     /* Initialize buttons */
     Serial.println(F("Initializing buttons..."));
     Serial.flush();
