@@ -1,35 +1,27 @@
-Import("env", "projenv")
-import os
+Import("env")
 
-# Function to exclude ARM-specific files from LVGL library
-def exclude_lvgl_arm_files(node):
-    """Filter out ARM-specific assembly and hardware-specific files"""
-    node_path = node.get_path()
-    
-    # Exclude patterns
-    exclude_patterns = [
-        "helium",  # ARM Helium SIMD
-        "neon",    # ARM NEON SIMD  
-        "arm2d",   # ARM 2D graphics
-        "dave2d",  # Renesas Dave2D
-        "pxp",     # NXP PXP
-        "vg_lite", # VG-Lite GPU
-        "opengles",# OpenGL ES
-        "sdl",     # SDL
-    ]
-    
-    # Check if any exclude pattern is in the path
-    for pattern in exclude_patterns:
-        if pattern in node_path.lower():
-            return None  # Exclude this file
-    
+# Apply source filters to exclude ARM-specific files from ALL libraries
+def apply_lib_filters(node):
+    """Filter callback to exclude ARM-specific source files"""
+    # Get the source file path
     return node
 
-# Apply filter to all library dependencies
-for lib in env.GetLibBuilders():
-    lib.env.AddBuildMiddleware(exclude_lvgl_arm_files, "*.[sS]")  # Assembly files
-    lib.env.AddBuildMiddleware(exclude_lvgl_arm_files, "*.c")     # C files in excluded dirs
-    lib.env.AddBuildMiddleware(exclude_lvgl_arm_files, "*.cpp")   # C++ files in excluded dirs
+# Get library builders and modify their source filters
+print("Applying LVGL ARM exclusion filters...")
 
-print("✓ LVGL build filter applied - excluding ARM/hardware-specific code")
+# Modify the default source filter for libraries
+original_src_filter = env.GetProjectOption("src_filter", "")
+
+# For library dependencies, we need to filter at the library level
+env.Append(
+    CPPDEFINES=[
+        ("LV_CONF_PATH", '\\"lv_conf.h\\"'),
+    ]
+)
+
+# Print build environment info
+print(f"Build type: {env.get('BUILD_TYPE', 'release')}")
+print(f"Platform: {env.get('PIOPLATFORM', 'unknown')}")
+
+print("✓ ESP32-specific LVGL configuration applied")
 

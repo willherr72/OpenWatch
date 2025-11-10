@@ -9,13 +9,14 @@
 
 /* Static variables */
 static lv_indev_t *touch_indev = nullptr;
+static lv_indev_drv_t indev_drv;
 static CST816SDriver touchDriver;
 static bool touchInitialized = false;
 
 /**
  * @brief Touch read callback for LVGL
  */
-static void lvgl_touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data) {
+static void lvgl_touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
     if (!touchInitialized || !touchDriver.isReady()) {
         data->state = LV_INDEV_STATE_RELEASED;
         return;
@@ -58,9 +59,10 @@ void lvgl_touch_init() {
     
     /* Create LVGL input device even if touch controller failed */
     /* The driver will handle missing hardware gracefully */
-    touch_indev = lv_indev_create();
-    lv_indev_set_type(touch_indev, LV_INDEV_TYPE_POINTER);
-    lv_indev_set_read_cb(touch_indev, lvgl_touch_read_cb);
+    lv_indev_drv_init(&indev_drv);
+    indev_drv.type = LV_INDEV_TYPE_POINTER;
+    indev_drv.read_cb = lvgl_touch_read_cb;
+    touch_indev = lv_indev_drv_register(&indev_drv);
     
     Serial.println("[Touch] LVGL touch input initialized");
 }

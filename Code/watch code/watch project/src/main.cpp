@@ -214,7 +214,7 @@ void setup() {
     Serial.flush();
     
     /* Force LVGL to refresh NOW - this is critical for screen transitions */
-    lv_refr_now(lvgl_get_display());
+    lv_refr_now(NULL);
     Serial.println(F("lv_refr_now() completed"));
     Serial.flush();
     
@@ -351,7 +351,7 @@ void loop() {
         watch_face_update();
         
         /* Force display refresh after watch face update */
-        lv_refr_now(lvgl_get_display());
+        lv_refr_now(NULL);
     }
     
     /* Small delay to prevent tight loop */

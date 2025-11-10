@@ -8,7 +8,9 @@
 
 /* Static variables */
 static Adafruit_GC9A01A *tft_ptr = nullptr;
-static lv_display_t *lvgl_display = nullptr;
+static lv_disp_t *lvgl_display = nullptr;
+static lv_disp_drv_t disp_drv;
+static lv_disp_draw_buf_t draw_buf;
 
 /* Draw buffer - 2 buffers for double buffering */
 static lv_color_t draw_buf1[LVGL_BUFFER_SIZE];
@@ -18,12 +20,12 @@ static lv_color_t draw_buf2[LVGL_BUFFER_SIZE];
  * @brief Flush callback for LVGL
  * Called when LVGL wants to update a region of the display
  */
-static void lvgl_display_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map) {
+static void lvgl_display_flush_cb(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p) {
     static int flush_count = 0;
     
     if (tft_ptr == nullptr) {
         Serial.println("[Display] ERROR: tft_ptr is null in flush callback!");
-        lv_display_flush_ready(disp);
+        lv_disp_flush_ready(disp);
         return;
     }
 
@@ -41,13 +43,13 @@ static void lvgl_display_flush_cb(lv_display_t *disp, const lv_area_t *area, uin
     
     /* Set window and push pixels */
     tft_ptr->setAddrWindow(area->x1, area->y1, w, h);
-    tft_ptr->writePixels((uint16_t *)px_map, w * h);
+    tft_ptr->writePixels((uint16_t *)color_p, w * h);
     
     /* End transaction */
     tft_ptr->endWrite();
 
     /* Tell LVGL we're done */
-    lv_display_flush_ready(disp);
+    lv_disp_flush_ready(disp);
 }
 
 /**
@@ -100,19 +102,23 @@ void lvgl_display_init(Adafruit_GC9A01A *tft) {
     Serial.println("[Display] LVGL lv_init() complete");
     Serial.flush();
 
-    /* Create display */
-    lvgl_display = lv_display_create(SCREEN_WIDTH, SCREEN_HEIGHT);
-    Serial.println("[Display] LVGL display created");
+    /* Initialize draw buffer */
+    lv_disp_draw_buf_init(&draw_buf, draw_buf1, draw_buf2, LVGL_BUFFER_SIZE);
+    Serial.println("[Display] LVGL draw buffer initialized");
     Serial.flush();
     
-    /* Set display buffers - use 2 buffers for smooth rendering */
-    lv_display_set_buffers(lvgl_display, draw_buf1, draw_buf2, sizeof(draw_buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
-    Serial.println("[Display] LVGL buffers set");
+    /* Initialize display driver */
+    lv_disp_drv_init(&disp_drv);
+    disp_drv.hor_res = SCREEN_WIDTH;
+    disp_drv.ver_res = SCREEN_HEIGHT;
+    disp_drv.flush_cb = lvgl_display_flush_cb;
+    disp_drv.draw_buf = &draw_buf;
+    Serial.println("[Display] LVGL display driver configured");
     Serial.flush();
     
-    /* Set flush callback */
-    lv_display_set_flush_cb(lvgl_display, lvgl_display_flush_cb);
-    Serial.println("[Display] LVGL flush callback set");
+    /* Register display driver */
+    lvgl_display = lv_disp_drv_register(&disp_drv);
+    Serial.println("[Display] LVGL display driver registered");
     Serial.flush();
 
     Serial.println("[Display] LVGL display initialized");
@@ -123,6 +129,6 @@ void lvgl_display_init(Adafruit_GC9A01A *tft) {
 /**
  * @brief Get LVGL display object
  */
-lv_display_t* lvgl_get_display() {
+lv_disp_t* lvgl_get_display() {
     return lvgl_display;
 }

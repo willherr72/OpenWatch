@@ -25,7 +25,7 @@ void lvgl_display_init(Adafruit_GC9A01A *tft);
 
 /**
  * @brief Get the LVGL display object
- * @return Pointer to lv_display_t
+ * @return Pointer to lv_disp_t
  */
-lv_display_t* lvgl_get_display();
+lv_disp_t* lvgl_get_display();
 
