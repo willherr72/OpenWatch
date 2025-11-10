@@ -27,10 +27,24 @@ SleepManager sleepMgr;
 bool timeSynced = false;
 unsigned long lastWiFiAttempt = 0;
 unsigned long lastNtpAttempt = 0;
-unsigned long lastWiFiCheckTime = 0;
+unsigned long lastWiFiCheckTime = 0;  // For throttling WiFi operations
 
-/* Timezone configuration for Central Time Zone (UTC-5 = CDT) */
-long gmtOffsetSec = -18000;     // CDT is UTC-5 (-5 * 3600 = -18000 seconds)  
+// ═══════════════════════════════════════════════════════════════════════
+// TIMEZONE CONFIGURATION - Change timezone here
+// ═══════════════════════════════════════════════════════════════════════
+// Central Standard Time (CST) = UTC-6 (DST ended Nov 2, 2025)
+const long TIMEZONE_OFFSET_SEC = -21600;  // -6 hours * 3600 = -21600 seconds
+// 
+// Other common US timezones:
+// CDT (Central Daylight Time) = -18000  (UTC-5)
+// EST (Eastern Standard Time) = -18000  (UTC-5)  
+// EDT (Eastern Daylight Time) = -14400  (UTC-4)
+// PST (Pacific Standard Time) = -28800  (UTC-8)
+// PDT (Pacific Daylight Time) = -25200  (UTC-7)
+// ═══════════════════════════════════════════════════════════════════════
+
+/* Timezone configuration for Central Time Zone */
+long gmtOffsetSec = TIMEZONE_OFFSET_SEC;
 int daylightOffsetSec = 0;      // Not using DST offset
 
 /* Update timers */
@@ -92,6 +106,11 @@ void setup() {
     Serial.println(F("Splash screen shown, will be replaced by watch face"));
     Serial.flush();
 
+    /* Initialize I2C for sensors (touch controller, etc.) */
+    Serial.println(F("Initializing I2C..."));
+    Wire.begin(TOUCH_SDA_PIN, TOUCH_SCL_PIN);  // SDA=8, SCL=9 (shared with sensors)
+    Serial.printf("I2C initialized on SDA=%d, SCL=%d\n", TOUCH_SDA_PIN, TOUCH_SCL_PIN);
+    
     /* Initialize touch input */
     Serial.println(F("Initializing touch input..."));
     Serial.flush();
@@ -147,6 +166,7 @@ void setup() {
     }
     Serial.flush();
 
+<<<<<<< HEAD
     /* Initialize buttons */
     Serial.println(F("Initializing buttons..."));
     Serial.flush();
@@ -303,7 +323,6 @@ void loop() {
             lastWatchFaceUpdate = 0;
             return;
         }
-        return;
     }
 
     /* ============================================

@@ -20,6 +20,12 @@
 #ifndef COLOR_RED
 #define COLOR_RED 0xF800
 #endif
+#ifndef COLOR_CYAN
+#define COLOR_CYAN 0x07FF
+#endif
+#ifndef COLOR_ORANGE
+#define COLOR_ORANGE 0xFD20
+#endif
 #ifndef COLOR_LIGHTGRAY
 #define COLOR_LIGHTGRAY 0xC618
 #endif
