@@ -65,6 +65,14 @@
 /* Disable ARM Helium assembly optimizations (ESP32-S3 uses Xtensa, not ARM) */
 #define LV_USE_DRAW_SW_ASM 0
 
+/* Explicitly disable ARM-specific features */
+#define LV_USE_DRAW_ARM2D_SYNC 0
+
+/* Use standard software rendering only (no hardware acceleration) */
+#define LV_USE_DRAW_SDL 0
+#define LV_USE_DRAW_OPENGLES 0
+#define LV_USE_DRAW_VG_LITE 0
+
 /*=================
    FONT USAGE
  ==================*/
