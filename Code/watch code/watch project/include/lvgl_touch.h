@@ -19,3 +19,14 @@ void lvgl_touch_init();
  */
 lv_indev_t* lvgl_get_touch_indev();
 
+/**
+ * @brief Update gesture detection (call in main loop)
+ */
+void lvgl_touch_update_gestures();
+
+/**
+ * @brief Check if touch is initialized and working
+ * @return true if touch is ready, false otherwise
+ */
+bool lvgl_touch_is_ready();
+

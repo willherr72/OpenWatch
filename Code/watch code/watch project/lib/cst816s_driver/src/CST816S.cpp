@@ -24,27 +24,34 @@ bool CST816SDriver::begin(TwoWire &wire, int sdaPin, int sclPin, int rstPin, int
     reset();
     delay(50);  // Wait for reset to complete
   } else {
-    // No hardware reset available - try software wakeup
-    delay(30);  // Give chip time to boot
+    // No hardware reset available - CST816S should be held high by pull-up
+    Serial.println("CST816T: No hardware reset pin, waiting for chip boot...");
+    delay(100);  // Give chip more time to boot after power-on
+    
+    // Try to wake the chip by writing to the wake register
+    Serial.println("CST816T: Attempting software wake-up...");
+    writeRegister(0xFE, 0x01);  // Disable auto-sleep / wake up
+    delay(50);
   }
 
-  // I2C should already be initialized by caller, just verify settings
-  wire_->setClock(100000);  // 100kHz for reliability
-  wire_->setTimeout(100);    // 100ms timeout
+  // I2C should already be initialized by caller with proper settings
+  // Don't reconfigure I2C here to avoid conflicts
   
   // Try to detect chip with retries
   int attempts = 0;
-  const int MAX_ATTEMPTS = 3;
+  const int MAX_ATTEMPTS = 5;  // More attempts
   bool detected = false;
   
+  Serial.println("CST816T: Attempting to detect chip...");
   while (attempts < MAX_ATTEMPTS && !detected) {
     attempts++;
+    Serial.printf("CST816T: Detection attempt %d/%d\n", attempts, MAX_ATTEMPTS);
     if (whoAmI()) {
       detected = true;
       break;
     }
     if (attempts < MAX_ATTEMPTS) {
-      delay(50);  // Wait before retry
+      delay(100);  // Longer delay between retries
     }
   }
   
@@ -93,14 +100,24 @@ void CST816SDriver::wakeUp() {
 
 bool CST816SDriver::whoAmI() {
   uint8_t chipId;
+  Serial.printf("CST816T: Reading chip ID from register 0x%02X...\n", CST816_REG_CHIP_ID);
   if (readRegister(CST816_REG_CHIP_ID, chipId)) {
+    Serial.printf("CST816T: Read chip ID: 0x%02X\n", chipId);
     if (chipId == 0xB5) {  // CST816T chip ID
+      Serial.println("CST816T: ✓ Chip ID matches (0xB5)");
       return true;
     }
     // Some variants might have different IDs but still work
     Serial.printf("CST816T: Note - Chip ID 0x%02X (expected 0xB5)\n", chipId);
-    return (chipId != 0x00 && chipId != 0xFF);  // Accept non-default values
+    if (chipId != 0x00 && chipId != 0xFF) {
+      Serial.println("CST816T: ✓ Accepting non-standard chip ID");
+      return true;  // Accept non-default values
+    } else {
+      Serial.println("CST816T: ✗ Invalid chip ID (0x00 or 0xFF indicates no response)");
+      return false;
+    }
   }
+  Serial.println("CST816T: ✗ Failed to read chip ID register");
   return false;
 }
 

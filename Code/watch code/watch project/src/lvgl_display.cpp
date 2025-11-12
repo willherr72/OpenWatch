@@ -79,22 +79,12 @@ void lvgl_display_init(Adafruit_GC9A01A *tft) {
     Serial.println("[Display] Rotation set");
     Serial.flush();
     
-    /* Test the display with direct drawing */
-    Serial.println("[Display] Testing fillScreen...");
-    Serial.flush();
-    tft->fillScreen(0x0000);  // Black
-    delay(100);
-    
-    Serial.println("[Display] Drawing test circle...");
-    Serial.flush();
-    tft->fillCircle(120, 120, 50, 0xF800);  // Red circle
-    delay(1000);  // Show for 1 second
-    
+    /* Clear the display */
     Serial.println("[Display] Clearing screen...");
     Serial.flush();
     tft->fillScreen(0x0000);  // Black
     
-    Serial.println("[Display] TFT test complete, initializing LVGL...");
+    Serial.println("[Display] Display ready, initializing LVGL...");
     Serial.flush();
 
     /* Initialize LVGL */

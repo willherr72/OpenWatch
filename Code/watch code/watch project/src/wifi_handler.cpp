@@ -82,10 +82,11 @@ void initWiFi(long gmtOffsetSec, int daylightOffsetSec, unsigned long &lastNtpAt
     Serial.printf("[WiFi] Subnet: %s\n", WiFi.subnetMask().toString().c_str());
     Serial.printf("[WiFi] DNS: %s\n", WiFi.dnsIP().toString().c_str());
     
-    // Configure NTP with timezone
+    // Configure NTP with timezone (sets ESP32 RTC - persists without WiFi!)
     Serial.println(F("[WiFi] Configuring NTP..."));
     Serial.printf("[WiFi] Timezone: GMT%+d (DST: %d)\n", gmtOffsetSec/3600, daylightOffsetSec);
     configTime(gmtOffsetSec, daylightOffsetSec, "pool.ntp.org", "time.google.com");
+    Serial.println(F("[WiFi] Note: Once synced, time persists in RTC even without WiFi"));
     lastNtpAttempt = millis();
     
     // Wait for NTP sync
