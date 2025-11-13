@@ -11,6 +11,7 @@
 #include "app_manager.h"
 #include "button_handler.h"
 #include "wifi_handler.h"
+#include "sensor_handler.h"
 
 /* SPI and TFT Display */
 SPIClass displaySPI(FSPI);
@@ -146,6 +147,13 @@ void setup() {
         Serial.printf("  Found %d I2C device(s)\n", devicesFound);
     }
     Serial.println(F("I2C scan complete"));
+    
+    /* Initialize sensors (BMP280, BNO055, MAX30102, GPS) */
+    Serial.println(F("Initializing sensors..."));
+    Serial.flush();
+    sensor_handler_init();
+    Serial.println(F("Sensor initialization complete"));
+    Serial.flush();
     
     /* Initialize touch input */
     Serial.println(F("Initializing touch input..."));
@@ -337,6 +345,11 @@ void loop() {
         Serial.println(F("[GPIO18] Power button held for 3 seconds - showing power menu"));
         app_manager_navigate_to(AppType::POWER_MENU);
     }
+    
+    /* ============================================
+     * Sensor updates (rate limited internally to 200ms)
+     * ============================================ */
+    sensor_handler_update();
     
     /* ============================================
      * Background tasks (WiFi, NTP, etc.)
