@@ -5,6 +5,8 @@
 
 #include "app_manager.h"
 #include "watch_face.h"
+#include "sensor_handler.h"
+#include <math.h>
 
 /* Current app state */
 static AppType current_app = AppType::WATCH_FACE;
@@ -19,6 +21,7 @@ static lv_obj_t *heart_rate_screen = nullptr;
 static lv_obj_t *more_settings_screen = nullptr;
 static lv_obj_t *time_setting_screen = nullptr;
 static lv_obj_t *power_menu_screen = nullptr;
+static lv_obj_t *compass_screen = nullptr;
 
 /* Time setting UI elements */
 static lv_obj_t *hour_roller = nullptr;
@@ -27,6 +30,15 @@ static lv_obj_t *minute_roller = nullptr;
 /* Power menu UI elements */
 static lv_obj_t *power_off_slider = nullptr;
 static lv_obj_t *reboot_slider = nullptr;
+
+/* Sensor streaming UI elements */
+static lv_obj_t *sensor_streaming_btn = nullptr;
+
+/* Compass UI elements */
+static lv_obj_t *compass_yaw_label = nullptr;
+static lv_obj_t *compass_pitch_label = nullptr;
+static lv_obj_t *compass_roll_label = nullptr;
+static lv_obj_t *compass_needle = nullptr;
 
 /**
  * @brief Create fitness app screen
@@ -317,6 +329,116 @@ static lv_obj_t* create_heart_rate_screen() {
 }
 
 /**
+ * @brief Create compass screen
+ */
+static lv_obj_t* create_compass_screen() {
+    lv_obj_t *screen = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(screen, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_grad_color(screen, lv_color_hex(0x001a0a), 0);
+    lv_obj_set_style_bg_grad_dir(screen, LV_GRAD_DIR_VER, 0);
+    
+    /* Title */
+    lv_obj_t *title = lv_label_create(screen);
+    lv_label_set_text(title, "COMPASS");
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(title, lv_color_hex(0x00FF88), 0);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 15);
+    
+    /* Compass circle background */
+    lv_obj_t *compass_bg = lv_obj_create(screen);
+    lv_obj_set_size(compass_bg, 130, 130);
+    lv_obj_align(compass_bg, LV_ALIGN_CENTER, 0, -15);
+    lv_obj_set_style_radius(compass_bg, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(compass_bg, lv_color_hex(0x1a1a1a), 0);
+    lv_obj_set_style_border_width(compass_bg, 2, 0);
+    lv_obj_set_style_border_color(compass_bg, lv_color_hex(0x00FF88), 0);
+    lv_obj_set_style_pad_all(compass_bg, 0, 0);
+    
+    /* Cardinal direction markers */
+    lv_obj_t *north = lv_label_create(compass_bg);
+    lv_label_set_text(north, "N");
+    lv_obj_set_style_text_font(north, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(north, lv_color_hex(0xFF4444), 0);
+    lv_obj_align(north, LV_ALIGN_TOP_MID, 0, 3);
+    
+    lv_obj_t *south = lv_label_create(compass_bg);
+    lv_label_set_text(south, "S");
+    lv_obj_set_style_text_font(south, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(south, lv_color_hex(0xAAAAAA), 0);
+    lv_obj_align(south, LV_ALIGN_BOTTOM_MID, 0, -3);
+    
+    lv_obj_t *east = lv_label_create(compass_bg);
+    lv_label_set_text(east, "E");
+    lv_obj_set_style_text_font(east, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(east, lv_color_hex(0xAAAAAA), 0);
+    lv_obj_align(east, LV_ALIGN_RIGHT_MID, -3, 0);
+    
+    lv_obj_t *west = lv_label_create(compass_bg);
+    lv_label_set_text(west, "W");
+    lv_obj_set_style_text_font(west, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(west, lv_color_hex(0xAAAAAA), 0);
+    lv_obj_align(west, LV_ALIGN_LEFT_MID, 3, 0);
+    
+    /* Compass needle - using absolute positioning within compass_bg */
+    compass_needle = lv_line_create(compass_bg);
+    static lv_point_t needle_points_init[] = {{65, 65}, {65, 25}};  // From center to top
+    lv_line_set_points(compass_needle, needle_points_init, 2);
+    lv_obj_set_style_line_width(compass_needle, 3, 0);
+    lv_obj_set_style_line_color(compass_needle, lv_color_hex(0xFF4444), 0);
+    lv_obj_set_style_line_rounded(compass_needle, true, 0);
+    
+    /* Center dot */
+    lv_obj_t *center = lv_obj_create(compass_bg);
+    lv_obj_set_size(center, 6, 6);
+    lv_obj_center(center);
+    lv_obj_set_style_radius(center, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(center, lv_color_hex(0x00FF88), 0);
+    lv_obj_set_style_border_width(center, 0, 0);
+    
+    /* Simple stacked text layout at bottom - centered */
+    int bottom_y = 175;
+    
+    /* Azimuth row */
+    lv_obj_t *azm_label = lv_label_create(screen);
+    lv_label_set_text(azm_label, "Azm: ---°");
+    lv_obj_set_style_text_font(azm_label, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(azm_label, lv_color_hex(0xAAAAAA), 0);
+    lv_obj_set_pos(azm_label, 0, bottom_y);
+    lv_obj_set_width(azm_label, 240);
+    lv_obj_set_style_text_align(azm_label, LV_TEXT_ALIGN_CENTER, 0);
+    compass_yaw_label = azm_label;  // Store reference for updating
+    
+    /* Pitch row */
+    lv_obj_t *pitch_label = lv_label_create(screen);
+    lv_label_set_text(pitch_label, "Pitch: ---°");
+    lv_obj_set_style_text_font(pitch_label, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(pitch_label, lv_color_hex(0xAAAAAA), 0);
+    lv_obj_set_pos(pitch_label, 0, bottom_y + 17);
+    lv_obj_set_width(pitch_label, 240);
+    lv_obj_set_style_text_align(pitch_label, LV_TEXT_ALIGN_CENTER, 0);
+    compass_pitch_label = pitch_label;
+    
+    /* Roll row */
+    lv_obj_t *roll_label = lv_label_create(screen);
+    lv_label_set_text(roll_label, "Roll: ---°");
+    lv_obj_set_style_text_font(roll_label, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(roll_label, lv_color_hex(0xAAAAAA), 0);
+    lv_obj_set_pos(roll_label, 0, bottom_y + 34);
+    lv_obj_set_width(roll_label, 240);
+    lv_obj_set_style_text_align(roll_label, LV_TEXT_ALIGN_CENTER, 0);
+    compass_roll_label = roll_label;
+    
+    /* Swipe hint */
+    lv_obj_t *hint = lv_label_create(screen);
+    lv_label_set_text(hint, LV_SYMBOL_RIGHT " Swipe");
+    lv_obj_set_style_text_font(hint, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(hint, lv_color_hex(0x555555), 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_RIGHT, -5, -3);
+    
+    return screen;
+}
+
+/**
  * @brief Event handler for Set Time button in More Settings
  */
 static void set_time_button_event_cb(lv_event_t *e) {
@@ -324,6 +446,40 @@ static void set_time_button_event_cb(lv_event_t *e) {
     if (code == LV_EVENT_CLICKED) {
         Serial.println("[AppManager] Set Time button clicked");
         app_manager_navigate_to(AppType::TIME_SETTING);
+    }
+}
+
+/**
+ * @brief Event handler for Sensor Streaming button in More Settings
+ */
+static void sensor_streaming_button_event_cb(lv_event_t *e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_CLICKED) {
+        /* Debouncing - prevent rapid toggling */
+        static unsigned long lastToggleTime = 0;
+        unsigned long now = millis();
+        if (now - lastToggleTime < 300) {  // 300ms debounce
+            return;
+        }
+        lastToggleTime = now;
+        
+        /* Toggle sensor streaming */
+        bool current_state = sensor_handler_is_streaming();
+        sensor_handler_set_streaming(!current_state);
+        
+        /* Update button appearance */
+        lv_obj_t *btn = lv_event_get_target(e);
+        if (!current_state) {
+            /* Streaming enabled - change to green */
+            lv_obj_set_style_bg_color(btn, lv_color_hex(0x00CC66), 0);
+            lv_obj_set_style_bg_color(btn, lv_color_hex(0x00AA55), LV_STATE_PRESSED);
+            Serial.println("[AppManager] Sensor Streaming ENABLED");
+        } else {
+            /* Streaming disabled - change to gray */
+            lv_obj_set_style_bg_color(btn, lv_color_hex(0x2a2a2a), 0);
+            lv_obj_set_style_bg_color(btn, lv_color_hex(0x3a3a3a), LV_STATE_PRESSED);
+            Serial.println("[AppManager] Sensor Streaming DISABLED");
+        }
     }
 }
 
@@ -344,7 +500,7 @@ static lv_obj_t* create_more_settings_screen() {
     /* Set Time button */
     lv_obj_t *set_time_btn = lv_btn_create(screen);
     lv_obj_set_size(set_time_btn, 180, 50);
-    lv_obj_align(set_time_btn, LV_ALIGN_CENTER, 0, -10);
+    lv_obj_align(set_time_btn, LV_ALIGN_CENTER, 0, -35);
     lv_obj_set_style_bg_color(set_time_btn, lv_color_hex(0x2a2a2a), 0);
     lv_obj_set_style_bg_color(set_time_btn, lv_color_hex(0x3a3a3a), LV_STATE_PRESSED);
     lv_obj_set_style_radius(set_time_btn, 12, 0);
@@ -356,6 +512,31 @@ static lv_obj_t* create_more_settings_screen() {
     lv_obj_set_style_text_font(btn_label, &lv_font_montserrat_18, 0);
     lv_obj_set_style_text_color(btn_label, lv_color_hex(0xFFFFFF), 0);
     lv_obj_center(btn_label);
+    
+    /* Sensor Streaming button */
+    sensor_streaming_btn = lv_btn_create(screen);
+    lv_obj_set_size(sensor_streaming_btn, 180, 50);
+    lv_obj_align(sensor_streaming_btn, LV_ALIGN_CENTER, 0, 25);
+    
+    /* Set initial color based on streaming state */
+    bool streaming_state = sensor_handler_is_streaming();
+    if (streaming_state) {
+        lv_obj_set_style_bg_color(sensor_streaming_btn, lv_color_hex(0x00CC66), 0);
+        lv_obj_set_style_bg_color(sensor_streaming_btn, lv_color_hex(0x00AA55), LV_STATE_PRESSED);
+    } else {
+        lv_obj_set_style_bg_color(sensor_streaming_btn, lv_color_hex(0x2a2a2a), 0);
+        lv_obj_set_style_bg_color(sensor_streaming_btn, lv_color_hex(0x3a3a3a), LV_STATE_PRESSED);
+    }
+    
+    lv_obj_set_style_radius(sensor_streaming_btn, 12, 0);
+    lv_obj_set_style_border_width(sensor_streaming_btn, 0, 0);
+    lv_obj_add_event_cb(sensor_streaming_btn, sensor_streaming_button_event_cb, LV_EVENT_CLICKED, NULL);
+    
+    lv_obj_t *sensor_label = lv_label_create(sensor_streaming_btn);
+    lv_label_set_text(sensor_label, "Sensor Streaming");
+    lv_obj_set_style_text_font(sensor_label, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_color(sensor_label, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_center(sensor_label);
     
     /* Swipe hint */
     lv_obj_t *hint = lv_label_create(screen);
@@ -702,6 +883,13 @@ void app_manager_handle_swipe(SwipeDirection dir) {
                 }
                 load_screen_with_animation(music_screen, LV_SCR_LOAD_ANIM_MOVE_LEFT);
                 current_app = AppType::MUSIC;
+            } else if (current_app == AppType::WEATHER) {
+                /* Swipe left from weather -> Compass */
+                if (!compass_screen) {
+                    compass_screen = create_compass_screen();
+                }
+                load_screen_with_animation(compass_screen, LV_SCR_LOAD_ANIM_MOVE_LEFT);
+                current_app = AppType::COMPASS;
             }
             break;
             
@@ -718,6 +906,13 @@ void app_manager_handle_swipe(SwipeDirection dir) {
                 // Don't reinit - just reload existing watch face screen
                 load_screen_with_animation(watch_face_get_screen(), LV_SCR_LOAD_ANIM_MOVE_RIGHT);
                 current_app = AppType::WATCH_FACE;
+            } else if (current_app == AppType::COMPASS) {
+                /* Swipe right from compass -> back to weather */
+                if (!weather_screen) {
+                    weather_screen = create_weather_screen();
+                }
+                load_screen_with_animation(weather_screen, LV_SCR_LOAD_ANIM_MOVE_RIGHT);
+                current_app = AppType::WEATHER;
             } else if (current_app == AppType::MORE_SETTINGS) {
                 /* Swipe right from More Settings -> back to Settings */
                 if (!settings_screen) {
@@ -787,6 +982,10 @@ void app_manager_navigate_to(AppType app) {
             if (!power_menu_screen) power_menu_screen = create_power_menu_screen();
             load_screen_with_animation(power_menu_screen, LV_SCR_LOAD_ANIM_FADE_IN);
             break;
+        case AppType::COMPASS:
+            if (!compass_screen) compass_screen = create_compass_screen();
+            load_screen_with_animation(compass_screen, LV_SCR_LOAD_ANIM_FADE_IN);
+            break;
         default:
             break;
     }
@@ -807,12 +1006,70 @@ void app_manager_return_home() {
 }
 
 /**
+ * @brief Update compass screen with live sensor data
+ */
+static void update_compass_screen() {
+    if (!compass_screen || !compass_yaw_label || !compass_pitch_label || !compass_roll_label) {
+        return;
+    }
+    
+    /* Get BNO055 data */
+    BNO055Data imu_data = sensor_handler_get_bno055();
+    
+    if (imu_data.valid) {
+        /* Update digital readouts with label prefix */
+        static char buf[32];
+        
+        snprintf(buf, sizeof(buf), "Azm: %.1f°", imu_data.yaw);
+        lv_label_set_text(compass_yaw_label, buf);
+        
+        snprintf(buf, sizeof(buf), "Pitch: %.1f°", imu_data.pitch);
+        lv_label_set_text(compass_pitch_label, buf);
+        
+        snprintf(buf, sizeof(buf), "Roll: %.1f°", imu_data.roll);
+        lv_label_set_text(compass_roll_label, buf);
+        
+        /* Update compass needle rotation */
+        if (compass_needle) {
+            /* Calculate needle endpoint based on yaw angle */
+            /* BNO055 Yaw: 0° = North, 90° = East, 180° = South, 270° = West */
+            /* We need to subtract yaw from 90 to correct the orientation */
+            float angle_rad = (imu_data.yaw) * 3.14159 / 180.0;  // Convert to radians
+            int center_x = 65;
+            int center_y = 65;
+            int needle_length = 42;
+            
+            int end_x = center_x + (int)(needle_length * cos(angle_rad));
+            int end_y = center_y - (int)(needle_length * sin(angle_rad));  // Subtract because Y increases downward
+            
+            static lv_point_t needle_points[2];
+            needle_points[0].x = center_x;
+            needle_points[0].y = center_y;
+            needle_points[1].x = end_x;
+            needle_points[1].y = end_y;
+            
+            lv_line_set_points(compass_needle, needle_points, 2);
+        }
+    } else {
+        /* No valid data */
+        lv_label_set_text(compass_yaw_label, "Azm: ---°");
+        lv_label_set_text(compass_pitch_label, "Pitch: ---°");
+        lv_label_set_text(compass_roll_label, "Roll: ---°");
+    }
+}
+
+/**
  * @brief Update current app
  */
 void app_manager_update() {
     /* Update watch face if it's current */
     if (current_app == AppType::WATCH_FACE) {
         watch_face_update();
+    }
+    
+    /* Update compass screen if it's current */
+    if (current_app == AppType::COMPASS) {
+        update_compass_screen();
     }
     
     /* Add updates for other apps here as needed */

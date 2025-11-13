@@ -20,7 +20,8 @@ enum class AppType {
     HEART_RATE,
     MORE_SETTINGS,
     TIME_SETTING,
-    POWER_MENU
+    POWER_MENU,
+    COMPASS
 };
 
 /**
