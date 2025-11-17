@@ -59,6 +59,35 @@ int daylightOffsetSec = 0;      // Not using DST offset
 unsigned long lastWatchFaceUpdate = 0;
 const unsigned long WATCH_FACE_UPDATE_INTERVAL = 1000;  // Update every second
 
+/* Battery monitoring configuration */
+// BATTERY_ADC_PIN is defined in platformio.ini
+const float BATTERY_MAX_VOLTAGE = 3.36;  // 100% battery voltage
+const float BATTERY_MIN_VOLTAGE = 2.64;  // 0% battery voltage
+const float ADC_VOLTAGE_REF = 3.3;       // ESP32-S3 ADC reference voltage
+const int ADC_MAX_VALUE = 4095;          // 12-bit ADC
+
+/**
+ * @brief Read battery percentage from ADC pin
+ * @return Battery percentage (0-100)
+ */
+int readBatteryPercentage() {
+    // Read ADC value from GPIO1
+    int adcValue = analogRead(BATTERY_ADC_PIN);
+    
+    // Convert ADC value to voltage
+    // Using default attenuation (ADC_11db) which supports 0-3.9V range
+    float voltage = (adcValue / (float)ADC_MAX_VALUE) * ADC_VOLTAGE_REF;
+    
+    // Map voltage to percentage (2.64V = 0%, 3.36V = 100%)
+    float percentage = ((voltage - BATTERY_MIN_VOLTAGE) / (BATTERY_MAX_VOLTAGE - BATTERY_MIN_VOLTAGE)) * 100.0;
+    
+    // Clamp percentage to 0-100 range
+    if (percentage < 0) percentage = 0;
+    if (percentage > 100) percentage = 100;
+    
+    return (int)percentage;
+}
+
 void setup() {
     Serial.begin(115200);
     while(!Serial && millis() < 1500) { }
@@ -81,6 +110,12 @@ void setup() {
     Serial.println(F("Waiting for peripherals to power up..."));
     delay(200);  // CST816S needs time to boot after power-on
     Serial.println(F("Power rail stabilized"));
+    
+    /* Configure ADC for battery monitoring */
+    analogReadResolution(12);  // 12-bit resolution (0-4095)
+    analogSetAttenuation(ADC_11db);  // 0-3.9V range (default for ESP32-S3)
+    pinMode(BATTERY_ADC_PIN, INPUT);
+    Serial.printf("Battery ADC configured on GPIO%d (12-bit, 0-3.9V range)\n", BATTERY_ADC_PIN);
 
     /* CPU frequency check */
     Serial.printf("CPU Frequency: %d MHz\n", getCpuFrequencyMhz());
@@ -211,7 +246,12 @@ void setup() {
     
     watch_face_set_wifi_status(false);
     watch_face_set_time_synced(false);
-    watch_face_set_battery(86, false);  // Initial battery level
+    
+    /* Read initial battery level from ADC */
+    int initialBattery = readBatteryPercentage();
+    watch_face_set_battery(initialBattery, false);
+    Serial.printf("Initial battery level: %d%%\n", initialBattery);
+    
     watch_face_set_steps(1526);         // Initial step count
     watch_face_set_heart_rate(0);       // No heart rate data yet
     Serial.println(F("Watch face status set"));
@@ -404,7 +444,6 @@ void loop() {
         
         /* Update sensor data (simulated for now) */
         static int simulatedSteps = 1526;
-        static int simulatedBattery = 86;
         
         // Simulate step counter incrementing occasionally
         if (now % 10000 < 1000) {
@@ -412,11 +451,9 @@ void loop() {
             watch_face_set_steps(simulatedSteps);
         }
         
-        // Simulate battery slowly draining
-        if (now % 60000 < 1000) {
-            simulatedBattery = max(0, simulatedBattery - 1);
-            watch_face_set_battery(simulatedBattery, false);
-        }
+        // Read actual battery level from ADC
+        int batteryLevel = readBatteryPercentage();
+        watch_face_set_battery(batteryLevel, false);
         
         // Simulate heart rate (placeholder for when you add a sensor)
         // watch_face_set_heart_rate(72);  // Uncomment when you have real data
