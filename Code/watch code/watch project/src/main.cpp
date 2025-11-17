@@ -90,7 +90,8 @@ int readBatteryPercentage() {
 
 void setup() {
     Serial.begin(115200);
-    while(!Serial && millis() < 1500) { }
+    // No COM port wait - allows immediate streaming for FPGA/direct bus reading
+    // Serial will work either way, data is available on the bus immediately
     
     Serial.println();
     Serial.println(F("  ___                  __        __    _       _     "));
