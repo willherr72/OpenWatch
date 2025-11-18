@@ -1,0 +1,17 @@
+[project]
+name = "watch2fpga"
+version = "0.1.0"
+description = "Serial port forwarder from COM15 to COM5"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "pyserial>=3.5",
+]
+
+[project.scripts]
+watch2fpga = "watch2fpga:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
