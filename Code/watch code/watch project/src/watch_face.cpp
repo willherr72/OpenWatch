@@ -4,6 +4,7 @@
  */
 
 #include "watch_face.h"
+#include "sensor_handler.h"
 #include <time.h>
 #include <sys/time.h>
 #include <math.h>
@@ -36,7 +37,11 @@ static lv_obj_t *heart_label = nullptr;
 static lv_obj_t *weather_icon = nullptr;
 static lv_obj_t *weather_label = nullptr;
 
+static lv_obj_t *timer_icon = nullptr;
+static lv_obj_t *timer_label = nullptr;
+
 static lv_obj_t *wifi_icon = nullptr;
+static lv_obj_t *bt_icon = nullptr;
 static lv_obj_t *messages_icon = nullptr;
 
 /* Status data */
@@ -44,7 +49,6 @@ static bool wifi_connected = false;
 static bool time_synced = false;
 static int battery_level = 86;
 static bool battery_charging = false;
-static int step_count = 1526;
 static int heart_rate = 0;
 
 /* Time cache to minimize updates */
@@ -192,7 +196,7 @@ static void create_status_indicators() {
     lv_obj_align(steps_icon, LV_ALIGN_LEFT_MID, 55, 30);
     
     steps_label = lv_label_create(screen);
-    lv_label_set_text_fmt(steps_label, "%d", step_count);
+    lv_label_set_text(steps_label, "0");  // Will be updated by sensor handler
     lv_obj_set_style_text_font(steps_label, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(steps_label, lv_color_hex(0xFF6B35), 0);
     lv_obj_align_to(steps_label, steps_icon, LV_ALIGN_OUT_BOTTOM_MID, 0, 2);
@@ -212,31 +216,47 @@ static void create_status_indicators() {
     
     /* Weather - bottom right, well within visible area */
     weather_icon = lv_label_create(screen);
-    lv_label_set_text(weather_icon, LV_SYMBOL_IMAGE);  // Image symbol for weather
+    lv_label_set_text(weather_icon, LV_SYMBOL_IMAGE);  // Keep emoji image symbol for watch face
     lv_obj_set_style_text_font(weather_icon, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(weather_icon, lv_color_hex(0x88CCFF), 0);  // Light blue
     lv_obj_align(weather_icon, LV_ALIGN_RIGHT_MID, -55, 30);
     
     weather_label = lv_label_create(screen);
-    lv_label_set_text(weather_label, "26°");
+    lv_label_set_text(weather_label, "--°");
     lv_obj_set_style_text_font(weather_label, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(weather_label, lv_color_hex(0x88CCFF), 0);
     lv_obj_align_to(weather_label, weather_icon, LV_ALIGN_OUT_BOTTOM_MID, 0, 2);
     
+    /* Timer - top center (only shown when active) - centered like battery but lower */
+    timer_icon = lv_label_create(screen);
+    lv_label_set_text(timer_icon, LV_SYMBOL_LOOP);  // Clock/timer symbol
+    lv_obj_set_style_text_font(timer_icon, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(timer_icon, lv_color_hex(0xAA66FF), 0);  // Purple
+    lv_obj_align(timer_icon, LV_ALIGN_TOP_MID, -20, 32);  // Centered like battery, y=32
+    lv_obj_add_flag(timer_icon, LV_OBJ_FLAG_HIDDEN);  // Hidden by default
+    
+    timer_label = lv_label_create(screen);
+    lv_label_set_text(timer_label, "0:00");
+    lv_obj_set_style_text_font(timer_label, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(timer_label, lv_color_hex(0xAA66FF), 0);
+    lv_obj_align(timer_label, LV_ALIGN_TOP_MID, 10, 34);  // Centered like battery, y=34
+    lv_obj_add_flag(timer_label, LV_OBJ_FLAG_HIDDEN);  // Hidden by default
+    
     /* Connectivity icons - centered below clock hands */
-    // WiFi icon
+    // WiFi icon (shown in WiFi mode)
     wifi_icon = lv_label_create(screen);
     lv_label_set_text(wifi_icon, LV_SYMBOL_WIFI);
     lv_obj_set_style_text_font(wifi_icon, &lv_font_montserrat_12, 0);
-    lv_obj_set_style_text_color(wifi_icon, lv_color_hex(0x444444), 0);
-    lv_obj_align(wifi_icon, LV_ALIGN_CENTER, -25, 40);
+    lv_obj_set_style_text_color(wifi_icon, lv_color_hex(0x00FF88), 0);  // Start green
+    lv_obj_align(wifi_icon, LV_ALIGN_CENTER, -12, 40);
     
-    // Bluetooth icon (placeholder - using USB symbol as proxy)
-    lv_obj_t *bt_icon = lv_label_create(screen);
+    // Bluetooth icon (shown in BLE mode)
+    bt_icon = lv_label_create(screen);
     lv_label_set_text(bt_icon, LV_SYMBOL_BLUETOOTH);
     lv_obj_set_style_text_font(bt_icon, &lv_font_montserrat_12, 0);
-    lv_obj_set_style_text_color(bt_icon, lv_color_hex(0x444444), 0);
-    lv_obj_align(bt_icon, LV_ALIGN_CENTER, 0, 40);
+    lv_obj_set_style_text_color(bt_icon, lv_color_hex(0x00AAFF), 0);  // Blue
+    lv_obj_align(bt_icon, LV_ALIGN_CENTER, -12, 40);  // Same position as WiFi
+    lv_obj_add_flag(bt_icon, LV_OBJ_FLAG_HIDDEN);  // Hidden by default (WiFi mode)
     
     // Notifications icon
     messages_icon = lv_label_create(screen);
@@ -256,15 +276,35 @@ static void create_brand_logo() {
 /**
  * @brief Update WiFi status indicator
  */
-void watch_face_set_wifi_status(bool connected) {
-    wifi_connected = connected;
-    if (wifi_icon) {
-        if (connected) {
-            lv_obj_set_style_text_color(wifi_icon, lv_color_hex(0x00ff88), 0);
-        } else {
-            lv_obj_set_style_text_color(wifi_icon, lv_color_hex(0x444444), 0);
+void watch_face_set_connectivity_status(bool connected, bool is_ble) {
+    if (is_ble) {
+        // BLE mode - show Bluetooth icon, hide WiFi
+        if (wifi_icon) {
+            lv_obj_add_flag(wifi_icon, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (bt_icon) {
+            lv_obj_clear_flag(bt_icon, LV_OBJ_FLAG_HIDDEN);
+            if (connected) {
+                lv_obj_set_style_text_color(bt_icon, lv_color_hex(0x00AAFF), 0);  // Blue
+            } else {
+                lv_obj_set_style_text_color(bt_icon, lv_color_hex(0xFF4444), 0);  // Red
+            }
+        }
+    } else {
+        // WiFi mode - show WiFi icon, hide Bluetooth
+        if (bt_icon) {
+            lv_obj_add_flag(bt_icon, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (wifi_icon) {
+            lv_obj_clear_flag(wifi_icon, LV_OBJ_FLAG_HIDDEN);
+            if (connected) {
+                lv_obj_set_style_text_color(wifi_icon, lv_color_hex(0x00FF88), 0);  // Green
+            } else {
+                lv_obj_set_style_text_color(wifi_icon, lv_color_hex(0xFF4444), 0);  // Red
+            }
         }
     }
+    wifi_connected = connected;  // Keep for backwards compatibility
 }
 
 /**
@@ -311,16 +351,6 @@ void watch_face_set_battery(int level, bool charging) {
 }
 
 /**
- * @brief Set step count
- */
-void watch_face_set_steps(int steps) {
-    step_count = steps;
-    if (steps_label) {
-        lv_label_set_text_fmt(steps_label, "%d", steps);
-    }
-}
-
-/**
  * @brief Set heart rate
  */
 void watch_face_set_heart_rate(int bpm) {
@@ -331,6 +361,37 @@ void watch_face_set_heart_rate(int bpm) {
         } else {
             lv_label_set_text(heart_label, "--");
         }
+    }
+}
+
+/**
+ * @brief Set weather display
+ */
+void watch_face_set_weather(float temp, const char* icon_text) {
+    if (weather_label) {
+        /* Update temperature */
+        static char buf[8];
+        snprintf(buf, sizeof(buf), "%.0f°", temp);
+        lv_label_set_text(weather_label, buf);
+        
+        /* Keep the emoji icon on watch face - don't change it */
+        // Icon stays as LV_SYMBOL_IMAGE for consistency
+    }
+}
+
+/**
+ * @brief Set steps display
+ */
+void watch_face_set_steps(int steps) {
+    if (steps_label) {
+        /* Format with comma for thousands */
+        static char buf[16];
+        if (steps >= 1000) {
+            snprintf(buf, sizeof(buf), "%d,%03d", steps / 1000, steps % 1000);
+        } else {
+            snprintf(buf, sizeof(buf), "%d", steps);
+        }
+        lv_label_set_text(steps_label, buf);
     }
 }
 
@@ -452,6 +513,17 @@ void watch_face_update() {
     } else {
         lv_obj_set_style_text_opa(time_label, LV_OPA_COVER, 0);
     }
+    
+    /* Update step count from sensor */
+    watch_face_set_steps(sensor_handler_get_steps());
+    
+    /* Update heart rate from sensor */
+    MAX30102Data hr_data = sensor_handler_get_max30102();
+    if (hr_data.valid && hr_data.heartRate > 0) {
+        watch_face_set_heart_rate(hr_data.heartRate);
+    } else {
+        watch_face_set_heart_rate(0);  // Show "--" when no valid data
+    }
 }
 
 /**
@@ -489,4 +561,37 @@ void watch_face_set_time_manually(int hour, int minute) {
     
     /* Mark as time synced */
     watch_face_set_time_synced(true);
+}
+
+/**
+ * @brief Set timer display
+ */
+void watch_face_set_timer(int minutes, int seconds, bool running) {
+    if (!timer_icon || !timer_label) {
+        return;
+    }
+    
+    // Hide timer if at 0:00 (whether running or not - means timer is not set or finished)
+    if (minutes == 0 && seconds == 0) {
+        lv_obj_add_flag(timer_icon, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(timer_label, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+    
+    // Show and update timer
+    lv_obj_clear_flag(timer_icon, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(timer_label, LV_OBJ_FLAG_HIDDEN);
+    
+    static char buf[16];
+    snprintf(buf, sizeof(buf), "%d:%02d", minutes, seconds);
+    lv_label_set_text(timer_label, buf);
+    
+    // Change color based on state
+    if (running) {
+        lv_obj_set_style_text_color(timer_icon, lv_color_hex(0x00FF88), 0);  // Green when running
+        lv_obj_set_style_text_color(timer_label, lv_color_hex(0x00FF88), 0);
+    } else {
+        lv_obj_set_style_text_color(timer_icon, lv_color_hex(0xFF4444), 0);  // Red when finished/stopped
+        lv_obj_set_style_text_color(timer_label, lv_color_hex(0xFF4444), 0);
+    }
 }

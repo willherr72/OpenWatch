@@ -12,6 +12,8 @@
 #include "button_handler.h"
 #include "wifi_handler.h"
 #include "sensor_handler.h"
+#include "ble_handler.h"
+#include "vibration.h"
 
 /* SPI and TFT Display */
 SPIClass displaySPI(FSPI);
@@ -237,6 +239,13 @@ void setup() {
         MENU_BUTTON_PIN, digitalRead(MENU_BUTTON_PIN));
     
     /* Wake-up configuration removed - sleep functionality not used */
+    
+    /* Initialize vibration motor */
+    Serial.println(F("Initializing vibration motor..."));
+    Serial.flush();
+    vibration_init();
+    Serial.println(F("Vibration motor initialized"));
+    Serial.flush();
 
     /* Initialize watch face - this will replace splash screen */
     Serial.println(F("Creating watch face..."));
@@ -245,7 +254,7 @@ void setup() {
     Serial.println(F("Watch face created and loaded"));
     Serial.flush();
     
-    watch_face_set_wifi_status(false);
+    watch_face_set_connectivity_status(false, false);  // Start in WiFi mode, disconnected
     watch_face_set_time_synced(false);
     
     /* Read initial battery level from ADC */
@@ -253,9 +262,16 @@ void setup() {
     watch_face_set_battery(initialBattery, false);
     Serial.printf("Initial battery level: %d%%\n", initialBattery);
     
-    watch_face_set_steps(1526);         // Initial step count
+    watch_face_set_steps(0);            // Initial step count (will be updated by sensor)
     watch_face_set_heart_rate(0);       // No heart rate data yet
     Serial.println(F("Watch face status set"));
+    Serial.flush();
+    
+    /* Initialize BLE handler (not started unless mode is switched) */
+    Serial.println(F("Initializing BLE handler..."));
+    Serial.flush();
+    ble_handler_init();
+    Serial.println(F("BLE handler initialized (inactive)"));
     Serial.flush();
     
     /* Initialize app manager for multi-screen navigation */
@@ -393,71 +409,84 @@ void loop() {
     sensor_handler_update();
     
     /* ============================================
-     * Background tasks (WiFi, NTP, etc.)
+     * BLE updates
+     * ============================================ */
+    ble_handler_update();
+    
+    /* ============================================
+     * Background tasks (WiFi, NTP, BLE time sync, etc.)
      * ============================================ */
     if (now - lastBackgroundTasks > 1000) {  // Every second
         lastBackgroundTasks = now;
+        
+        /* Check connection mode */
+        ConnectionMode mode = ble_handler_get_mode();
         
         /* WiFi connection handling - non-blocking */
         wl_status_t wifiStatus = WiFi.status();
         bool wifiConnected = (wifiStatus == WL_CONNECTED);
         
-        /* If WiFi just connected, configure NTP (sets RTC - persists without WiFi!) */
-        static bool ntpConfigured = false;
-        if (wifiConnected && !ntpConfigured) {
-            Serial.println(F("[WiFi] Connected! Configuring NTP..."));
-            Serial.printf("IP: %s\n", WiFi.localIP().toString().c_str());
-            Serial.println(F("[NTP] Configuring time servers (sets ESP32 RTC)..."));
-            configTime(gmtOffsetSec, daylightOffsetSec, "pool.ntp.org", "time.nist.gov");
-            ntpConfigured = true;
-            lastNtpAttempt = now;
-        }
-        
-        /* Check if time is synced (RTC persists even without WiFi) */
-        if (!timeSynced) {
-            time_t nowTime = time(nullptr);
-            if (nowTime > 100000) {
-                // Time is valid - either just synced or RTC is maintaining it
-                timeSynced = true;
-                struct tm timeinfo;
-                getLocalTime(&timeinfo);
-                
-                if (wifiConnected) {
-                    Serial.println(F("[NTP] Time synced successfully from NTP!"));
-                } else {
-                    Serial.println(F("[RTC] Time already set in RTC (persists without WiFi)"));
+        if (mode == ConnectionMode::WIFI) {
+            /* If WiFi just connected, configure NTP (sets RTC - persists without WiFi!) */
+            static bool ntpConfigured = false;
+            if (wifiConnected && !ntpConfigured) {
+                Serial.println(F("[WiFi] Connected! Configuring NTP..."));
+                Serial.printf("IP: %s\n", WiFi.localIP().toString().c_str());
+                Serial.println(F("[NTP] Configuring time servers (sets ESP32 RTC)..."));
+                configTime(gmtOffsetSec, daylightOffsetSec, "pool.ntp.org", "time.nist.gov");
+                ntpConfigured = true;
+                lastNtpAttempt = now;
+            }
+            
+            /* Check if time is synced (RTC persists even without WiFi) */
+            if (!timeSynced) {
+                time_t nowTime = time(nullptr);
+                if (nowTime > 100000) {
+                    // Time is valid - either just synced or RTC is maintaining it
+                    timeSynced = true;
+                    struct tm timeinfo;
+                    getLocalTime(&timeinfo);
+                    
+                    if (wifiConnected) {
+                        Serial.println(F("[NTP] Time synced successfully from NTP!"));
+                    } else {
+                        Serial.println(F("[RTC] Time already set in RTC (persists without WiFi)"));
+                    }
+                    
+                    Serial.printf("Current time: %04d-%02d-%02d %02d:%02d:%02d\n", 
+                        timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                        timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
                 }
-                
-                Serial.printf("Current time: %04d-%02d-%02d %02d:%02d:%02d\n", 
-                    timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
-                    timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+            }
+            
+            /* Handle WiFi reconnection */
+            handleWiFiReconnection(now, lastWiFiAttempt);
+            
+            /* Handle NTP time sync */
+            handleNTPRetry(now, timeSynced, gmtOffsetSec, daylightOffsetSec, lastNtpAttempt);
+            
+        } else {
+            /* BLE mode - check for time sync */
+            if (ble_handler_time_synced() && !timeSynced) {
+                Serial.println(F("[BLE] Time synced via BLE!"));
+                timeSynced = true;
             }
         }
         
-        watch_face_set_wifi_status(wifiConnected);
-        
-        /* Handle WiFi reconnection */
-        handleWiFiReconnection(now, lastWiFiAttempt);
-        
-        /* Handle NTP time sync */
-        handleNTPRetry(now, timeSynced, gmtOffsetSec, daylightOffsetSec, lastNtpAttempt);
-        watch_face_set_time_synced(timeSynced);
-        
-        /* Update sensor data (simulated for now) */
-        static int simulatedSteps = 1526;
-        
-        // Simulate step counter incrementing occasionally
-        if (now % 10000 < 1000) {
-            simulatedSteps++;
-            watch_face_set_steps(simulatedSteps);
+        /* Update connectivity indicator on watch face */
+        if (mode == ConnectionMode::BLE) {
+            watch_face_set_connectivity_status(ble_handler_is_connected(), true);
+        } else {
+            watch_face_set_connectivity_status(wifiConnected, false);
         }
+        
+        watch_face_set_time_synced(timeSynced);
         
         // Read actual battery level from ADC
         int batteryLevel = readBatteryPercentage();
         watch_face_set_battery(batteryLevel, false);
         
-        // Simulate heart rate (placeholder for when you add a sensor)
-        // watch_face_set_heart_rate(72);  // Uncomment when you have real data
+        // Note: Steps and heart rate are updated in watch_face_update() from real sensors
     }
 
     /* ============================================

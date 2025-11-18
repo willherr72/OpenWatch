@@ -20,10 +20,11 @@ void watch_face_init();
 void watch_face_update();
 
 /**
- * @brief Set WiFi connection status
- * @param connected true if WiFi is connected
+ * @brief Set connectivity status (WiFi or BLE)
+ * @param connected true if connected
+ * @param is_ble true for BLE mode, false for WiFi mode
  */
-void watch_face_set_wifi_status(bool connected);
+void watch_face_set_connectivity_status(bool connected, bool is_ble);
 
 /**
  * @brief Set time sync status
@@ -49,6 +50,27 @@ void watch_face_set_steps(int steps);
  * @param bpm Beats per minute (0 = no data)
  */
 void watch_face_set_heart_rate(int bpm);
+
+/**
+ * @brief Set weather display
+ * @param temp Temperature in Fahrenheit
+ * @param icon_text Icon character to display
+ */
+void watch_face_set_weather(float temp, const char* icon_text);
+
+/**
+ * @brief Set steps display
+ * @param steps Current step count
+ */
+void watch_face_set_steps(int steps);
+
+/**
+ * @brief Set timer display
+ * @param minutes Remaining minutes
+ * @param seconds Remaining seconds
+ * @param running True if timer is running
+ */
+void watch_face_set_timer(int minutes, int seconds, bool running);
 
 /**
  * @brief Get the watch face screen object
