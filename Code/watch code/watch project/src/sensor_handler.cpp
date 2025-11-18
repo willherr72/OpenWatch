@@ -32,6 +32,15 @@ static BNO055Data bno055_data = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false};
 static MAX30102Data max30102_data = {0, 0, false};
 static GPSData gps_data = {0, 0, 0, 0, 0, false};
 
+/* Step counter variables */
+static int step_count = 0;
+static float last_accel_magnitude = 0;
+static unsigned long last_step_time = 0;
+static bool step_peak_detected = false;
+#define STEP_THRESHOLD 1.2        // Acceleration change threshold (m/s²)
+#define STEP_MIN_INTERVAL 250     // Minimum time between steps (ms)
+#define STEP_DEBOUNCE 100         // Debounce time (ms)
+
 /* Streaming state */
 static bool streaming_enabled = false;
 
@@ -58,6 +67,16 @@ static bool init_bmp280() {
                           Adafruit_BMP280::SAMPLING_X16,     /* Pressure oversampling */
                           Adafruit_BMP280::FILTER_X16,       /* Filtering */
                           Adafruit_BMP280::STANDBY_MS_500);  /* Standby time */
+        
+        /* Give sensor time to stabilize and take first reading */
+        delay(100);
+        
+        /* Perform a few dummy reads to flush out any bad initial values */
+        for (int i = 0; i < 3; i++) {
+            bmp280.readTemperature();
+            bmp280.readPressure();
+            delay(50);
+        }
         
         Serial.println(F("[Sensors] ✓ BMP280 initialized"));
         return true;
@@ -148,8 +167,9 @@ static void read_bmp280() {
     bmp280_data.temperature = bmp280.readTemperature();
     bmp280_data.pressure = bmp280.readPressure() / 100.0F;  // Convert Pa to hPa
     
-    /* Validate readings */
-    if (isnan(bmp280_data.temperature) || isnan(bmp280_data.pressure)) {
+    /* Validate readings - pressure should be between 300-1100 hPa (valid atmospheric range) */
+    if (isnan(bmp280_data.temperature) || isnan(bmp280_data.pressure) ||
+        bmp280_data.pressure < 300.0 || bmp280_data.pressure > 1100.0) {
         bmp280_data.valid = false;
     } else {
         bmp280_data.valid = true;
@@ -200,6 +220,51 @@ static void read_bno055() {
     
     /* Mark as valid if sensor is responding, even if not fully calibrated */
     bno055_data.valid = hasData;
+}
+
+/**
+ * @brief Detect steps from accelerometer data
+ */
+static void detect_steps() {
+    if (!bno055_data.valid) {
+        return;
+    }
+    
+    /* Calculate acceleration magnitude (remove gravity ~9.8) */
+    float accel_x = bno055_data.accel_x;
+    float accel_y = bno055_data.accel_y;
+    float accel_z = bno055_data.accel_z;
+    
+    float magnitude = sqrt(accel_x * accel_x + accel_y * accel_y + accel_z * accel_z);
+    
+    /* Calculate change from last reading */
+    float delta = fabs(magnitude - last_accel_magnitude);
+    
+    unsigned long now = millis();
+    
+    /* Step detection logic: look for acceleration peaks */
+    if (delta > STEP_THRESHOLD && !step_peak_detected) {
+        /* Check minimum time between steps */
+        if (now - last_step_time > STEP_MIN_INTERVAL) {
+            step_count++;
+            last_step_time = now;
+            step_peak_detected = true;
+            
+            /* Debug output (optional) */
+            static unsigned long last_debug = 0;
+            if (now - last_debug > 5000) {
+                Serial.printf("[StepCounter] Steps: %d\n", step_count);
+                last_debug = now;
+            }
+        }
+    }
+    
+    /* Reset peak detection after debounce time */
+    if (step_peak_detected && (now - last_step_time > STEP_DEBOUNCE)) {
+        step_peak_detected = false;
+    }
+    
+    last_accel_magnitude = magnitude;
 }
 
 /**
@@ -385,6 +450,7 @@ void sensor_handler_update() {
     
     if (bno055_available) {
         read_bno055();
+        detect_steps();  // Process accelerometer data for step counting
         delay(10);  // Larger delay after BNO055 (multiple I2C reads)
     }
     
@@ -439,11 +505,15 @@ void sensor_handler_print_data() {
     
     /* BMP280 */
     Serial.print(F("BMP280: "));
-    if (bmp280_available && bmp280_data.valid) {
-        Serial.printf("Temp: %.2f°C, Pressure: %.2f hPa\n", 
+    if (bmp280_available) {
+        Serial.printf("Temp: %.2f°C, Pressure: %.2f hPa", 
                      bmp280_data.temperature, bmp280_data.pressure);
+        if (!bmp280_data.valid) {
+            Serial.print(F(" [INVALID]"));
+        }
+        Serial.println();
     } else {
-        Serial.println(F("No data"));
+        Serial.println(F("Not detected"));
     }
     
     /* BNO055 */
@@ -542,5 +612,20 @@ bool sensor_handler_max30102_available() {
  */
 bool sensor_handler_gps_available() {
     return gps_available;
+}
+
+/**
+ * @brief Get current step count
+ */
+int sensor_handler_get_steps() {
+    return step_count;
+}
+
+/**
+ * @brief Reset step count
+ */
+void sensor_handler_reset_steps() {
+    step_count = 0;
+    Serial.println("[StepCounter] Reset to 0");
 }
 

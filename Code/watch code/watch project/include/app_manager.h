@@ -21,7 +21,9 @@ enum class AppType {
     MORE_SETTINGS,
     TIME_SETTING,
     POWER_MENU,
-    COMPASS
+    COMPASS,
+    GPS,
+    TIMER
 };
 
 /**

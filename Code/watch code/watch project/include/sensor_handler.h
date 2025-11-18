@@ -130,3 +130,14 @@ bool sensor_handler_max30102_available();
  */
 bool sensor_handler_gps_available();
 
+/**
+ * @brief Get current step count
+ * @return Number of steps counted today
+ */
+int sensor_handler_get_steps();
+
+/**
+ * @brief Reset step count (call at midnight)
+ */
+void sensor_handler_reset_steps();
+
