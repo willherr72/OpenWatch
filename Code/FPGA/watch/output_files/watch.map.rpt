@@ -1,0 +1,474 @@
+Analysis & Synthesis report for watch
+Tue Nov 18 13:36:32 2025
+Quartus Prime Version 24.1std.0 Build 1077 03/04/2025 SC Lite Edition
+
+
+---------------------
+; Table of Contents ;
+---------------------
+  1. Legal Notice
+  2. Analysis & Synthesis Summary
+  3. Analysis & Synthesis Settings
+  4. Parallel Compilation
+  5. Analysis & Synthesis Source Files Read
+  6. Analysis & Synthesis Resource Usage Summary
+  7. Analysis & Synthesis Resource Utilization by Entity
+  8. State Machine - |de2i_150_top|lcd_driver:lcd_inst|next_state_after_delay
+  9. State Machine - |de2i_150_top|lcd_driver:lcd_inst|state
+ 10. State Machine - |de2i_150_top|uart_rx:uart_inst|state
+ 11. Registers Removed During Synthesis
+ 12. Removed Registers Triggering Further Register Optimizations
+ 13. General Register Statistics
+ 14. Inverted Register Statistics
+ 15. Multiplexer Restructuring Statistics (Restructuring Performed)
+ 16. Parameter Settings for User Entity Instance: uart_rx:uart_inst
+ 17. Post-Synthesis Netlist Statistics for Top Partition
+ 18. Elapsed Time Per Partition
+ 19. Analysis & Synthesis Messages
+
+
+
+----------------
+; Legal Notice ;
+----------------
+Copyright (C) 2025  Altera Corporation. All rights reserved.
+Your use of Altera Corporation's design tools, logic functions 
+and other software and tools, and any partner logic 
+functions, and any output files from any of the foregoing 
+(including device programming or simulation files), and any 
+associated documentation or information are expressly subject 
+to the terms and conditions of the Altera Program License 
+Subscription Agreement, the Altera Quartus Prime License Agreement,
+the Altera IP License Agreement, or other applicable license
+agreement, including, without limitation, that your use is for
+the sole purpose of programming logic devices manufactured by
+Altera and sold by Altera or its authorized distributors.  Please
+refer to the Altera Software License Subscription Agreements 
+on the Quartus Prime software download page.
+
+
+
++--------------------------------------------------------------------------------------+
+; Analysis & Synthesis Summary                                                         ;
++------------------------------------+-------------------------------------------------+
+; Analysis & Synthesis Status        ; Successful - Tue Nov 18 13:36:32 2025           ;
+; Quartus Prime Version              ; 24.1std.0 Build 1077 03/04/2025 SC Lite Edition ;
+; Revision Name                      ; watch                                           ;
+; Top-level Entity Name              ; de2i_150_top                                    ;
+; Family                             ; Cyclone IV GX                                   ;
+; Total logic elements               ; 192                                             ;
+;     Total combinational functions  ; 173                                             ;
+;     Dedicated logic registers      ; 106                                             ;
+; Total registers                    ; 106                                             ;
+; Total pins                         ; 21                                              ;
+; Total virtual pins                 ; 0                                               ;
+; Total memory bits                  ; 0                                               ;
+; Embedded Multiplier 9-bit elements ; 0                                               ;
+; Total GXB Receiver Channel PCS     ; 0                                               ;
+; Total GXB Receiver Channel PMA     ; 0                                               ;
+; Total GXB Transmitter Channel PCS  ; 0                                               ;
+; Total GXB Transmitter Channel PMA  ; 0                                               ;
+; Total PLLs                         ; 0                                               ;
++------------------------------------+-------------------------------------------------+
+
+
++------------------------------------------------------------------------------------------------------------+
+; Analysis & Synthesis Settings                                                                              ;
++------------------------------------------------------------------+--------------------+--------------------+
+; Option                                                           ; Setting            ; Default Value      ;
++------------------------------------------------------------------+--------------------+--------------------+
+; Device                                                           ; EP4CGX150DF31C7    ;                    ;
+; Top-level entity name                                            ; de2i_150_top       ; watch              ;
+; Family name                                                      ; Cyclone IV GX      ; Cyclone V          ;
+; Use smart compilation                                            ; Off                ; Off                ;
+; Enable parallel Assembler and Timing Analyzer during compilation ; On                 ; On                 ;
+; Enable compact report table                                      ; Off                ; Off                ;
+; Restructure Multiplexers                                         ; Auto               ; Auto               ;
+; Create Debugging Nodes for IP Cores                              ; Off                ; Off                ;
+; Preserve fewer node names                                        ; On                 ; On                 ;
+; Intel FPGA IP Evaluation Mode                                    ; Enable             ; Enable             ;
+; Verilog Version                                                  ; Verilog_2001       ; Verilog_2001       ;
+; VHDL Version                                                     ; VHDL_1993          ; VHDL_1993          ;
+; State Machine Processing                                         ; Auto               ; Auto               ;
+; Safe State Machine                                               ; Off                ; Off                ;
+; Extract Verilog State Machines                                   ; On                 ; On                 ;
+; Extract VHDL State Machines                                      ; On                 ; On                 ;
+; Ignore Verilog initial constructs                                ; Off                ; Off                ;
+; Iteration limit for constant Verilog loops                       ; 5000               ; 5000               ;
+; Iteration limit for non-constant Verilog loops                   ; 250                ; 250                ;
+; Add Pass-Through Logic to Inferred RAMs                          ; On                 ; On                 ;
+; Infer RAMs from Raw Logic                                        ; On                 ; On                 ;
+; Parallel Synthesis                                               ; On                 ; On                 ;
+; DSP Block Balancing                                              ; Auto               ; Auto               ;
+; NOT Gate Push-Back                                               ; On                 ; On                 ;
+; Power-Up Don't Care                                              ; On                 ; On                 ;
+; Remove Redundant Logic Cells                                     ; Off                ; Off                ;
+; Remove Duplicate Registers                                       ; On                 ; On                 ;
+; Ignore CARRY Buffers                                             ; Off                ; Off                ;
+; Ignore CASCADE Buffers                                           ; Off                ; Off                ;
+; Ignore GLOBAL Buffers                                            ; Off                ; Off                ;
+; Ignore ROW GLOBAL Buffers                                        ; Off                ; Off                ;
+; Ignore LCELL Buffers                                             ; Off                ; Off                ;
+; Ignore SOFT Buffers                                              ; On                 ; On                 ;
+; Limit AHDL Integers to 32 Bits                                   ; Off                ; Off                ;
+; Optimization Technique                                           ; Balanced           ; Balanced           ;
+; Carry Chain Length                                               ; 70                 ; 70                 ;
+; Auto Carry Chains                                                ; On                 ; On                 ;
+; Auto Open-Drain Pins                                             ; On                 ; On                 ;
+; Perform WYSIWYG Primitive Resynthesis                            ; Off                ; Off                ;
+; Auto ROM Replacement                                             ; On                 ; On                 ;
+; Auto RAM Replacement                                             ; On                 ; On                 ;
+; Auto DSP Block Replacement                                       ; On                 ; On                 ;
+; Auto Shift Register Replacement                                  ; Auto               ; Auto               ;
+; Allow Shift Register Merging across Hierarchies                  ; Auto               ; Auto               ;
+; Auto Clock Enable Replacement                                    ; On                 ; On                 ;
+; Strict RAM Replacement                                           ; Off                ; Off                ;
+; Allow Synchronous Control Signals                                ; On                 ; On                 ;
+; Force Use of Synchronous Clear Signals                           ; Off                ; Off                ;
+; Auto RAM Block Balancing                                         ; On                 ; On                 ;
+; Auto RAM to Logic Cell Conversion                                ; Off                ; Off                ;
+; Auto Resource Sharing                                            ; Off                ; Off                ;
+; Allow Any RAM Size For Recognition                               ; Off                ; Off                ;
+; Allow Any ROM Size For Recognition                               ; Off                ; Off                ;
+; Allow Any Shift Register Size For Recognition                    ; Off                ; Off                ;
+; Use LogicLock Constraints during Resource Balancing              ; On                 ; On                 ;
+; Ignore translate_off and synthesis_off directives                ; Off                ; Off                ;
+; Timing-Driven Synthesis                                          ; On                 ; On                 ;
+; Report Parameter Settings                                        ; On                 ; On                 ;
+; Report Source Assignments                                        ; On                 ; On                 ;
+; Report Connectivity Checks                                       ; On                 ; On                 ;
+; Ignore Maximum Fan-Out Assignments                               ; Off                ; Off                ;
+; Synchronization Register Chain Length                            ; 2                  ; 2                  ;
+; Power Optimization During Synthesis                              ; Normal compilation ; Normal compilation ;
+; HDL message level                                                ; Level2             ; Level2             ;
+; Suppress Register Optimization Related Messages                  ; Off                ; Off                ;
+; Number of Removed Registers Reported in Synthesis Report         ; 5000               ; 5000               ;
+; Number of Swept Nodes Reported in Synthesis Report               ; 5000               ; 5000               ;
+; Number of Inverted Registers Reported in Synthesis Report        ; 100                ; 100                ;
+; Clock MUX Protection                                             ; On                 ; On                 ;
+; Auto Gated Clock Conversion                                      ; Off                ; Off                ;
+; Block Design Naming                                              ; Auto               ; Auto               ;
+; SDC constraint protection                                        ; Off                ; Off                ;
+; Synthesis Effort                                                 ; Auto               ; Auto               ;
+; Shift Register Replacement - Allow Asynchronous Clear Signal     ; On                 ; On                 ;
+; Pre-Mapping Resynthesis Optimization                             ; Off                ; Off                ;
+; Analysis & Synthesis Message Level                               ; Medium             ; Medium             ;
+; Disable Register Merging Across Hierarchies                      ; Auto               ; Auto               ;
+; Resource Aware Inference For Block RAM                           ; On                 ; On                 ;
++------------------------------------------------------------------+--------------------+--------------------+
+
+
++------------------------------------------+
+; Parallel Compilation                     ;
++----------------------------+-------------+
+; Processors                 ; Number      ;
++----------------------------+-------------+
+; Number detected on machine ; 12          ;
+; Maximum allowed            ; 6           ;
+;                            ;             ;
+; Average used               ; 1.00        ;
+; Maximum used               ; 6           ;
+;                            ;             ;
+; Usage by Processor         ; % Time Used ;
+;     Processor 1            ; 100.0%      ;
+;     Processors 2-6         ;   0.0%      ;
++----------------------------+-------------+
+
+
++---------------------------------------------------------------------------------------------------------------------------------------------------+
+; Analysis & Synthesis Source Files Read                                                                                                            ;
++----------------------------------+-----------------+------------------------+-----------------------------------------------------------+---------+
+; File Name with User-Entered Path ; Used in Netlist ; File Type              ; File Name with Absolute Path                              ; Library ;
++----------------------------------+-----------------+------------------------+-----------------------------------------------------------+---------+
+; uart_rx.v                        ; yes             ; User Verilog HDL File  ; C:/Users/jeffr/AppData/Local/quartus/watch/uart_rx.v      ;         ;
+; lcd_driver.v                     ; yes             ; User Verilog HDL File  ; C:/Users/jeffr/AppData/Local/quartus/watch/lcd_driver.v   ;         ;
+; de2i_150_top.v                   ; yes             ; User Verilog HDL File  ; C:/Users/jeffr/AppData/Local/quartus/watch/de2i_150_top.v ;         ;
++----------------------------------+-----------------+------------------------+-----------------------------------------------------------+---------+
+
+
++---------------------------------------------+
+; Analysis & Synthesis Resource Usage Summary ;
++--------------------------+------------------+
+; Resource                 ; Usage            ;
++--------------------------+------------------+
+; I/O pins                 ; 21               ;
+;                          ;                  ;
+; DSP block 9-bit elements ; 0                ;
+;                          ;                  ;
+; Maximum fan-out node     ; CLOCK_50~input   ;
+; Maximum fan-out          ; 106              ;
+; Total fan-out            ; 970              ;
+; Average fan-out          ; 3.02             ;
++--------------------------+------------------+
+
+
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+; Analysis & Synthesis Resource Utilization by Entity                                                                                                                                                                                 ;
++----------------------------+---------------------+---------------------------+-------------+--------------+---------+-----------+-----------+------+--------------+-----------------------------------+--------------+--------------+
+; Compilation Hierarchy Node ; Combinational ALUTs ; Dedicated Logic Registers ; Memory Bits ; DSP Elements ; DSP 9x9 ; DSP 18x18 ; DSP 36x36 ; Pins ; Virtual Pins ; Full Hierarchy Name               ; Entity Name  ; Library Name ;
++----------------------------+---------------------+---------------------------+-------------+--------------+---------+-----------+-----------+------+--------------+-----------------------------------+--------------+--------------+
+; |de2i_150_top              ; 173 (2)             ; 106 (9)                   ; 0           ; 0            ; 0       ; 0         ; 0         ; 21   ; 0            ; |de2i_150_top                     ; de2i_150_top ; work         ;
+;    |lcd_driver:lcd_inst|   ; 103 (103)           ; 54 (54)                   ; 0           ; 0            ; 0       ; 0         ; 0         ; 0    ; 0            ; |de2i_150_top|lcd_driver:lcd_inst ; lcd_driver   ; work         ;
+;    |uart_rx:uart_inst|     ; 68 (68)             ; 43 (43)                   ; 0           ; 0            ; 0       ; 0         ; 0         ; 0    ; 0            ; |de2i_150_top|uart_rx:uart_inst   ; uart_rx      ; work         ;
++----------------------------+---------------------+---------------------------+-------------+--------------+---------+-----------+-----------+------+--------------+-----------------------------------+--------------+--------------+
+Note: For table entries with two numbers listed, the numbers in parentheses indicate the number of resources of the given type used by the specific entity alone. The numbers listed outside of parentheses indicate the total resources of the given type used by the specific entity and all of its sub-entities in the hierarchy.
+
+
+Encoding Type:  One-Hot
++--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+; State Machine - |de2i_150_top|lcd_driver:lcd_inst|next_state_after_delay                                                                                                                                                                                                                                                       ;
++-------------------------------------+-------------------------------+----------------------------------+-------------------------------------+-------------------------------------+-----------------------------------+-----------------------------------+---------------------------------+---------------------------------+
+; Name                                ; next_state_after_delay.S_IDLE ; next_state_after_delay.S_DISP_ON ; next_state_after_delay.S_ENTRY_MODE ; next_state_after_delay.S_DISP_CLEAR ; next_state_after_delay.S_DISP_OFF ; next_state_after_delay.S_FUNC_SET ; next_state_after_delay.S_INIT_3 ; next_state_after_delay.S_INIT_2 ;
++-------------------------------------+-------------------------------+----------------------------------+-------------------------------------+-------------------------------------+-----------------------------------+-----------------------------------+---------------------------------+---------------------------------+
+; next_state_after_delay.S_INIT_2     ; 0                             ; 0                                ; 0                                   ; 0                                   ; 0                                 ; 0                                 ; 0                               ; 0                               ;
+; next_state_after_delay.S_INIT_3     ; 0                             ; 0                                ; 0                                   ; 0                                   ; 0                                 ; 0                                 ; 1                               ; 1                               ;
+; next_state_after_delay.S_FUNC_SET   ; 0                             ; 0                                ; 0                                   ; 0                                   ; 0                                 ; 1                                 ; 0                               ; 1                               ;
+; next_state_after_delay.S_DISP_OFF   ; 0                             ; 0                                ; 0                                   ; 0                                   ; 1                                 ; 0                                 ; 0                               ; 1                               ;
+; next_state_after_delay.S_DISP_CLEAR ; 0                             ; 0                                ; 0                                   ; 1                                   ; 0                                 ; 0                                 ; 0                               ; 1                               ;
+; next_state_after_delay.S_ENTRY_MODE ; 0                             ; 0                                ; 1                                   ; 0                                   ; 0                                 ; 0                                 ; 0                               ; 1                               ;
+; next_state_after_delay.S_DISP_ON    ; 0                             ; 1                                ; 0                                   ; 0                                   ; 0                                 ; 0                                 ; 0                               ; 1                               ;
+; next_state_after_delay.S_IDLE       ; 1                             ; 0                                ; 0                                   ; 0                                   ; 0                                 ; 0                                 ; 0                               ; 1                               ;
++-------------------------------------+-------------------------------+----------------------------------+-------------------------------------+-------------------------------------+-----------------------------------+-----------------------------------+---------------------------------+---------------------------------+
+
+
+Encoding Type:  One-Hot
++----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+; State Machine - |de2i_150_top|lcd_driver:lcd_inst|state                                                                                                                                                                                                  ;
++--------------------+---------------+--------------+-----------------+--------------+-----------------+--------------------+--------------------+------------------+------------------+----------------+----------------+----------------+----------------+
+; Name               ; state.S_DELAY ; state.S_HOLD ; state.S_WAIT_EN ; state.S_IDLE ; state.S_DISP_ON ; state.S_ENTRY_MODE ; state.S_DISP_CLEAR ; state.S_DISP_OFF ; state.S_FUNC_SET ; state.S_INIT_3 ; state.S_INIT_2 ; state.S_INIT_1 ; state.S_PWR_UP ;
++--------------------+---------------+--------------+-----------------+--------------+-----------------+--------------------+--------------------+------------------+------------------+----------------+----------------+----------------+----------------+
+; state.S_PWR_UP     ; 0             ; 0            ; 0               ; 0            ; 0               ; 0                  ; 0                  ; 0                ; 0                ; 0              ; 0              ; 0              ; 0              ;
+; state.S_INIT_1     ; 0             ; 0            ; 0               ; 0            ; 0               ; 0                  ; 0                  ; 0                ; 0                ; 0              ; 0              ; 1              ; 1              ;
+; state.S_INIT_2     ; 0             ; 0            ; 0               ; 0            ; 0               ; 0                  ; 0                  ; 0                ; 0                ; 0              ; 1              ; 0              ; 1              ;
+; state.S_INIT_3     ; 0             ; 0            ; 0               ; 0            ; 0               ; 0                  ; 0                  ; 0                ; 0                ; 1              ; 0              ; 0              ; 1              ;
+; state.S_FUNC_SET   ; 0             ; 0            ; 0               ; 0            ; 0               ; 0                  ; 0                  ; 0                ; 1                ; 0              ; 0              ; 0              ; 1              ;
+; state.S_DISP_OFF   ; 0             ; 0            ; 0               ; 0            ; 0               ; 0                  ; 0                  ; 1                ; 0                ; 0              ; 0              ; 0              ; 1              ;
+; state.S_DISP_CLEAR ; 0             ; 0            ; 0               ; 0            ; 0               ; 0                  ; 1                  ; 0                ; 0                ; 0              ; 0              ; 0              ; 1              ;
+; state.S_ENTRY_MODE ; 0             ; 0            ; 0               ; 0            ; 0               ; 1                  ; 0                  ; 0                ; 0                ; 0              ; 0              ; 0              ; 1              ;
+; state.S_DISP_ON    ; 0             ; 0            ; 0               ; 0            ; 1               ; 0                  ; 0                  ; 0                ; 0                ; 0              ; 0              ; 0              ; 1              ;
+; state.S_IDLE       ; 0             ; 0            ; 0               ; 1            ; 0               ; 0                  ; 0                  ; 0                ; 0                ; 0              ; 0              ; 0              ; 1              ;
+; state.S_WAIT_EN    ; 0             ; 0            ; 1               ; 0            ; 0               ; 0                  ; 0                  ; 0                ; 0                ; 0              ; 0              ; 0              ; 1              ;
+; state.S_HOLD       ; 0             ; 1            ; 0               ; 0            ; 0               ; 0                  ; 0                  ; 0                ; 0                ; 0              ; 0              ; 0              ; 1              ;
+; state.S_DELAY      ; 1             ; 0            ; 0               ; 0            ; 0               ; 0                  ; 0                  ; 0                ; 0                ; 0              ; 0              ; 0              ; 1              ;
++--------------------+---------------+--------------+-----------------+--------------+-----------------+--------------------+--------------------+------------------+------------------+----------------+----------------+----------------+----------------+
+
+
+Encoding Type:  One-Hot
++---------------------------------------------------------------------------------------------------------------+
+; State Machine - |de2i_150_top|uart_rx:uart_inst|state                                                         ;
++-------------------+------------------+-------------------+-------------------+--------------+-----------------+
+; Name              ; state.S_STOP_BIT ; state.S_DATA_BITS ; state.S_START_BIT ; state.S_IDLE ; state.S_CLEANUP ;
++-------------------+------------------+-------------------+-------------------+--------------+-----------------+
+; state.S_IDLE      ; 0                ; 0                 ; 0                 ; 0            ; 0               ;
+; state.S_START_BIT ; 0                ; 0                 ; 1                 ; 1            ; 0               ;
+; state.S_DATA_BITS ; 0                ; 1                 ; 0                 ; 1            ; 0               ;
+; state.S_STOP_BIT  ; 1                ; 0                 ; 0                 ; 1            ; 0               ;
+; state.S_CLEANUP   ; 0                ; 0                 ; 0                 ; 1            ; 1               ;
++-------------------+------------------+-------------------+-------------------+--------------+-----------------+
+
+
++--------------------------------------------------------------------------------------------------------------+
+; Registers Removed During Synthesis                                                                           ;
++-----------------------------------------------------------+--------------------------------------------------+
+; Register name                                             ; Reason for Removal                               ;
++-----------------------------------------------------------+--------------------------------------------------+
+; lcd_driver:lcd_inst|delay_target[1,2,4,6,11,13,14,17..19] ; Merged with lcd_driver:lcd_inst|delay_target[0]  ;
+; lcd_driver:lcd_inst|delay_target[5,15,16]                 ; Merged with lcd_driver:lcd_inst|delay_target[10] ;
+; lcd_driver:lcd_inst|delay_target[3,8]                     ; Merged with lcd_driver:lcd_inst|delay_target[12] ;
+; lcd_driver:lcd_inst|delay_target[9]                       ; Merged with lcd_driver:lcd_inst|delay_target[7]  ;
+; fsm_state[1]                                              ; Merged with fsm_state[0]                         ;
+; fsm_state[0]                                              ; Stuck at GND due to stuck port data_in           ;
+; lcd_cmd_type[0,1]                                         ; Stuck at GND due to stuck port data_in           ;
+; lcd_driver:lcd_inst|delay_target[0]                       ; Stuck at GND due to stuck port data_in           ;
+; lcd_driver:lcd_inst|next_state_after_delay~10             ; Lost fanout                                      ;
+; lcd_driver:lcd_inst|next_state_after_delay~11             ; Lost fanout                                      ;
+; lcd_driver:lcd_inst|next_state_after_delay~12             ; Lost fanout                                      ;
+; lcd_driver:lcd_inst|next_state_after_delay~13             ; Lost fanout                                      ;
+; lcd_driver:lcd_inst|next_state_after_delay~14             ; Lost fanout                                      ;
+; lcd_driver:lcd_inst|state~17                              ; Lost fanout                                      ;
+; lcd_driver:lcd_inst|state~18                              ; Lost fanout                                      ;
+; lcd_driver:lcd_inst|state~19                              ; Lost fanout                                      ;
+; lcd_driver:lcd_inst|state~20                              ; Lost fanout                                      ;
+; lcd_driver:lcd_inst|state~21                              ; Lost fanout                                      ;
+; uart_rx:uart_inst|state~9                                 ; Lost fanout                                      ;
+; uart_rx:uart_inst|state~10                                ; Lost fanout                                      ;
+; lcd_driver:lcd_inst|delay_target[7]                       ; Stuck at VCC due to stuck port data_in           ;
+; Total Number of Removed Registers = 34                    ;                                                  ;
++-----------------------------------------------------------+--------------------------------------------------+
+
+
++------------------------------------------------------------------------------------+
+; Removed Registers Triggering Further Register Optimizations                        ;
++---------------+---------------------------+----------------------------------------+
+; Register name ; Reason for Removal        ; Registers Removed due to This Register ;
++---------------+---------------------------+----------------------------------------+
+; fsm_state[0]  ; Stuck at GND              ; lcd_cmd_type[1], lcd_cmd_type[0]       ;
+;               ; due to stuck port data_in ;                                        ;
++---------------+---------------------------+----------------------------------------+
+
+
++------------------------------------------------------+
+; General Register Statistics                          ;
++----------------------------------------------+-------+
+; Statistic                                    ; Value ;
++----------------------------------------------+-------+
+; Total registers                              ; 106   ;
+; Number of registers using Synchronous Clear  ; 36    ;
+; Number of registers using Synchronous Load   ; 2     ;
+; Number of registers using Asynchronous Clear ; 78    ;
+; Number of registers using Asynchronous Load  ; 0     ;
+; Number of registers using Clock Enable       ; 64    ;
+; Number of registers using Preset             ; 0     ;
++----------------------------------------------+-------+
+
+
++--------------------------------------------------+
+; Inverted Register Statistics                     ;
++----------------------------------------+---------+
+; Inverted Register                      ; Fan out ;
++----------------------------------------+---------+
+; lcd_driver:lcd_inst|busy               ; 3       ;
+; uart_rx:uart_inst|rx_sync_stage2       ; 12      ;
+; uart_rx:uart_inst|rx_sync_stage1       ; 1       ;
+; Total number of inverted registers = 3 ;         ;
++----------------------------------------+---------+
+
+
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+; Multiplexer Restructuring Statistics (Restructuring Performed)                                                                                                   ;
++--------------------+-----------+---------------+----------------------+------------------------+------------+----------------------------------------------------+
+; Multiplexer Inputs ; Bus Width ; Baseline Area ; Area if Restructured ; Saving if Restructured ; Registered ; Example Multiplexer Output                         ;
++--------------------+-----------+---------------+----------------------+------------------------+------------+----------------------------------------------------+
+; 4:1                ; 3 bits    ; 6 LEs         ; 3 LEs                ; 3 LEs                  ; Yes        ; |de2i_150_top|fsm_state[0]                         ;
+; 5:1                ; 2 bits    ; 6 LEs         ; 4 LEs                ; 2 LEs                  ; Yes        ; |de2i_150_top|lcd_driver:lcd_inst|delay_target[10] ;
+; 6:1                ; 2 bits    ; 8 LEs         ; 4 LEs                ; 4 LEs                  ; Yes        ; |de2i_150_top|lcd_driver:lcd_inst|LCD_DATA[4]      ;
+; 8:1                ; 20 bits   ; 100 LEs       ; 20 LEs               ; 80 LEs                 ; Yes        ; |de2i_150_top|lcd_driver:lcd_inst|cnt[3]           ;
+; 7:1                ; 16 bits   ; 64 LEs        ; 16 LEs               ; 48 LEs                 ; Yes        ; |de2i_150_top|uart_rx:uart_inst|clk_cnt[6]         ;
+; 3:1                ; 3 bits    ; 6 LEs         ; 6 LEs                ; 0 LEs                  ; No         ; |de2i_150_top|uart_rx:uart_inst|bit_index          ;
+; 5:1                ; 2 bits    ; 6 LEs         ; 6 LEs                ; 0 LEs                  ; No         ; |de2i_150_top|lcd_driver:lcd_inst|LCD_DATA         ;
+; 9:1                ; 3 bits    ; 18 LEs        ; 12 LEs               ; 6 LEs                  ; No         ; |de2i_150_top|lcd_driver:lcd_inst|Selector33       ;
+; 9:1                ; 8 bits    ; 48 LEs        ; 16 LEs               ; 32 LEs                 ; No         ; |de2i_150_top|lcd_driver:lcd_inst|Selector29       ;
+; 9:1                ; 3 bits    ; 18 LEs        ; 12 LEs               ; 6 LEs                  ; No         ; |de2i_150_top|uart_rx:uart_inst|Selector20         ;
+; 9:1                ; 2 bits    ; 12 LEs        ; 4 LEs                ; 8 LEs                  ; No         ; |de2i_150_top|uart_rx:uart_inst|Selector19         ;
+; 10:1               ; 2 bits    ; 12 LEs        ; 6 LEs                ; 6 LEs                  ; No         ; |de2i_150_top|lcd_driver:lcd_inst|Selector31       ;
++--------------------+-----------+---------------+----------------------+------------------------+------------+----------------------------------------------------+
+
+
++----------------------------------------------------------------+
+; Parameter Settings for User Entity Instance: uart_rx:uart_inst ;
++----------------+----------+------------------------------------+
+; Parameter Name ; Value    ; Type                               ;
++----------------+----------+------------------------------------+
+; CLOCK_FREQ     ; 50000000 ; Signed Integer                     ;
+; BAUD_RATE      ; 9600     ; Signed Integer                     ;
++----------------+----------+------------------------------------+
+Note: In order to hide this table in the UI and the text report file, please set the "Show Parameter Settings in Synthesis Report" option in "Analysis and Synthesis Settings -> More Settings" to "Off".
+
+
++-----------------------------------------------------+
+; Post-Synthesis Netlist Statistics for Top Partition ;
++-----------------------+-----------------------------+
+; Type                  ; Count                       ;
++-----------------------+-----------------------------+
+; boundary_port         ; 21                          ;
+; cycloneiii_ff         ; 106                         ;
+;     CLR               ; 32                          ;
+;     ENA               ; 18                          ;
+;     ENA CLR           ; 8                           ;
+;     ENA CLR SCLR      ; 36                          ;
+;     ENA CLR SLD       ; 2                           ;
+;     plain             ; 10                          ;
+; cycloneiii_lcell_comb ; 175                         ;
+;     arith             ; 34                          ;
+;         2 data inputs ; 34                          ;
+;     normal            ; 141                         ;
+;         0 data inputs ; 2                           ;
+;         1 data inputs ; 4                           ;
+;         2 data inputs ; 13                          ;
+;         3 data inputs ; 41                          ;
+;         4 data inputs ; 81                          ;
+;                       ;                             ;
+; Max LUT depth         ; 9.00                        ;
+; Average LUT depth     ; 4.11                        ;
++-----------------------+-----------------------------+
+
+
++-------------------------------+
+; Elapsed Time Per Partition    ;
++----------------+--------------+
+; Partition Name ; Elapsed Time ;
++----------------+--------------+
+; Top            ; 00:00:00     ;
++----------------+--------------+
+
+
++-------------------------------+
+; Analysis & Synthesis Messages ;
++-------------------------------+
+Info: *******************************************************************
+Info: Running Quartus Prime Analysis & Synthesis
+    Info: Version 24.1std.0 Build 1077 03/04/2025 SC Lite Edition
+    Info: Processing started: Tue Nov 18 13:36:26 2025
+Info: Command: quartus_map --read_settings_files=on --write_settings_files=off watch -c watch
+Warning (18236): Number of processors has not been specified which may cause overloading on shared machines.  Set the global assignment NUM_PARALLEL_PROCESSORS in your QSF to an appropriate value for best performance.
+Info (20030): Parallel compilation is enabled and will use 6 of the 6 processors detected
+Info (12021): Found 1 design units, including 1 entities, in source file uart_rx.v
+    Info (12023): Found entity 1: uart_rx File: C:/Users/jeffr/AppData/Local/quartus/watch/uart_rx.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file lcd_driver.v
+    Info (12023): Found entity 1: lcd_driver File: C:/Users/jeffr/AppData/Local/quartus/watch/lcd_driver.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file de2i_150_top.v
+    Info (12023): Found entity 1: de2i_150_top File: C:/Users/jeffr/AppData/Local/quartus/watch/de2i_150_top.v Line: 1
+Info (12127): Elaborating entity "de2i_150_top" for the top level hierarchy
+Warning (10230): Verilog HDL assignment warning at de2i_150_top.v(80): truncated value with size 32 to match size of target (2) File: C:/Users/jeffr/AppData/Local/quartus/watch/de2i_150_top.v Line: 80
+Warning (10230): Verilog HDL assignment warning at de2i_150_top.v(92): truncated value with size 32 to match size of target (2) File: C:/Users/jeffr/AppData/Local/quartus/watch/de2i_150_top.v Line: 92
+Warning (10199): Verilog HDL Case Statement warning at de2i_150_top.v(96): case item expression never matches the case expression File: C:/Users/jeffr/AppData/Local/quartus/watch/de2i_150_top.v Line: 96
+Warning (10230): Verilog HDL assignment warning at de2i_150_top.v(119): truncated value with size 32 to match size of target (2) File: C:/Users/jeffr/AppData/Local/quartus/watch/de2i_150_top.v Line: 119
+Warning (10230): Verilog HDL assignment warning at de2i_150_top.v(129): truncated value with size 32 to match size of target (2) File: C:/Users/jeffr/AppData/Local/quartus/watch/de2i_150_top.v Line: 129
+Info (12128): Elaborating entity "uart_rx" for hierarchy "uart_rx:uart_inst" File: C:/Users/jeffr/AppData/Local/quartus/watch/de2i_150_top.v Line: 58
+Warning (10230): Verilog HDL assignment warning at uart_rx.v(64): truncated value with size 32 to match size of target (16) File: C:/Users/jeffr/AppData/Local/quartus/watch/uart_rx.v Line: 64
+Warning (10230): Verilog HDL assignment warning at uart_rx.v(71): truncated value with size 32 to match size of target (16) File: C:/Users/jeffr/AppData/Local/quartus/watch/uart_rx.v Line: 71
+Warning (10230): Verilog HDL assignment warning at uart_rx.v(77): truncated value with size 32 to match size of target (3) File: C:/Users/jeffr/AppData/Local/quartus/watch/uart_rx.v Line: 77
+Warning (10230): Verilog HDL assignment warning at uart_rx.v(88): truncated value with size 32 to match size of target (16) File: C:/Users/jeffr/AppData/Local/quartus/watch/uart_rx.v Line: 88
+Info (12128): Elaborating entity "lcd_driver" for hierarchy "lcd_driver:lcd_inst" File: C:/Users/jeffr/AppData/Local/quartus/watch/de2i_150_top.v Line: 73
+Warning (10230): Verilog HDL assignment warning at lcd_driver.v(69): truncated value with size 32 to match size of target (20) File: C:/Users/jeffr/AppData/Local/quartus/watch/lcd_driver.v Line: 69
+Warning (10230): Verilog HDL assignment warning at lcd_driver.v(80): truncated value with size 32 to match size of target (20) File: C:/Users/jeffr/AppData/Local/quartus/watch/lcd_driver.v Line: 80
+Warning (10230): Verilog HDL assignment warning at lcd_driver.v(87): truncated value with size 32 to match size of target (20) File: C:/Users/jeffr/AppData/Local/quartus/watch/lcd_driver.v Line: 87
+Warning (10230): Verilog HDL assignment warning at lcd_driver.v(94): truncated value with size 32 to match size of target (20) File: C:/Users/jeffr/AppData/Local/quartus/watch/lcd_driver.v Line: 94
+Warning (10230): Verilog HDL assignment warning at lcd_driver.v(101): truncated value with size 32 to match size of target (20) File: C:/Users/jeffr/AppData/Local/quartus/watch/lcd_driver.v Line: 101
+Warning (10230): Verilog HDL assignment warning at lcd_driver.v(108): truncated value with size 32 to match size of target (20) File: C:/Users/jeffr/AppData/Local/quartus/watch/lcd_driver.v Line: 108
+Warning (10230): Verilog HDL assignment warning at lcd_driver.v(115): truncated value with size 32 to match size of target (20) File: C:/Users/jeffr/AppData/Local/quartus/watch/lcd_driver.v Line: 115
+Warning (10230): Verilog HDL assignment warning at lcd_driver.v(122): truncated value with size 32 to match size of target (20) File: C:/Users/jeffr/AppData/Local/quartus/watch/lcd_driver.v Line: 122
+Warning (10230): Verilog HDL assignment warning at lcd_driver.v(129): truncated value with size 32 to match size of target (20) File: C:/Users/jeffr/AppData/Local/quartus/watch/lcd_driver.v Line: 129
+Warning (10230): Verilog HDL assignment warning at lcd_driver.v(143): truncated value with size 32 to match size of target (20) File: C:/Users/jeffr/AppData/Local/quartus/watch/lcd_driver.v Line: 143
+Warning (10230): Verilog HDL assignment warning at lcd_driver.v(150): truncated value with size 32 to match size of target (20) File: C:/Users/jeffr/AppData/Local/quartus/watch/lcd_driver.v Line: 150
+Warning (10230): Verilog HDL assignment warning at lcd_driver.v(157): truncated value with size 32 to match size of target (20) File: C:/Users/jeffr/AppData/Local/quartus/watch/lcd_driver.v Line: 157
+Warning (10230): Verilog HDL assignment warning at lcd_driver.v(164): truncated value with size 32 to match size of target (20) File: C:/Users/jeffr/AppData/Local/quartus/watch/lcd_driver.v Line: 164
+Warning (10230): Verilog HDL assignment warning at lcd_driver.v(180): truncated value with size 32 to match size of target (20) File: C:/Users/jeffr/AppData/Local/quartus/watch/lcd_driver.v Line: 180
+Warning (10230): Verilog HDL assignment warning at lcd_driver.v(189): truncated value with size 32 to match size of target (20) File: C:/Users/jeffr/AppData/Local/quartus/watch/lcd_driver.v Line: 189
+Info (13000): Registers with preset signals will power-up high File: C:/Users/jeffr/AppData/Local/quartus/watch/lcd_driver.v Line: 9
+Info (13003): DEV_CLRn pin will set, and not reset, register with preset signal due to NOT Gate Push-Back
+Warning (13024): Output pins are stuck at VCC or GND
+    Warning (13410): Pin "UART_TXD" is stuck at VCC File: C:/Users/jeffr/AppData/Local/quartus/watch/de2i_150_top.v Line: 5
+    Warning (13410): Pin "UART_RTS" is stuck at GND File: C:/Users/jeffr/AppData/Local/quartus/watch/de2i_150_top.v Line: 7
+    Warning (13410): Pin "LCD_RW" is stuck at GND File: C:/Users/jeffr/AppData/Local/quartus/watch/de2i_150_top.v Line: 11
+    Warning (13410): Pin "LCD_ON" is stuck at VCC File: C:/Users/jeffr/AppData/Local/quartus/watch/de2i_150_top.v Line: 15
+Info (286030): Timing-Driven Synthesis is running
+Info (17049): 12 registers lost all their fanouts during netlist optimizations.
+Info (16010): Generating hard_block partition "hard_block:auto_generated_inst"
+    Info (16011): Adding 0 node(s), including 0 DDIO, 0 PLL, 0 transceiver and 0 LCELL
+Warning (21074): Design contains 4 input pin(s) that do not drive logic
+    Warning (15610): No output dependent on input pin "KEY[1]" File: C:/Users/jeffr/AppData/Local/quartus/watch/de2i_150_top.v Line: 3
+    Warning (15610): No output dependent on input pin "KEY[2]" File: C:/Users/jeffr/AppData/Local/quartus/watch/de2i_150_top.v Line: 3
+    Warning (15610): No output dependent on input pin "KEY[3]" File: C:/Users/jeffr/AppData/Local/quartus/watch/de2i_150_top.v Line: 3
+    Warning (15610): No output dependent on input pin "UART_CTS" File: C:/Users/jeffr/AppData/Local/quartus/watch/de2i_150_top.v Line: 6
+Info (21057): Implemented 216 device resources after synthesis - the final resource count might be different
+    Info (21058): Implemented 7 input pins
+    Info (21059): Implemented 14 output pins
+    Info (21061): Implemented 195 logic cells
+Info: Quartus Prime Analysis & Synthesis was successful. 0 errors, 35 warnings
+    Info: Peak virtual memory: 4887 megabytes
+    Info: Processing ended: Tue Nov 18 13:36:32 2025
+    Info: Elapsed time: 00:00:06
+    Info: Total CPU time (on all processors): 00:00:11
+
+

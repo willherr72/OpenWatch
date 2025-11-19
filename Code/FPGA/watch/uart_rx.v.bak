@@ -1,0 +1,144 @@
+// Verilog UART Receiver (9600 baud, 8-N-1, 50 MHz Clock)
+module uart_rx #(
+    // (50,000,000 Hz) / (9600 baud * 16 oversamples) = 325.52
+    // Use 325 for a slight speed increase (9615.38 baud, 0.16% error)
+    parameter CLKS_PER_BIT_X16 = 325,
+    parameter DATA_BITS        = 8
+) (
+    // System Signals
+    input  wire        i_Clk,          // 50 MHz Clock
+    input  wire        i_Rst,          // Active-High Reset
+
+    // Serial Input Signal
+    input  wire        i_RXD,          // RS-232 serial input pin
+
+    // Parallel Output Signals
+    output reg  [7:0]  o_Data,         // Received Data Byte
+    output reg         o_Data_Ready    // High for one clock cycle when o_Data is valid
+);
+
+    // Baud Rate Timer Constants
+    localparam HALF_BIT_CLKS = CLKS_PER_BIT_X16 / 2;
+    localparam BIT_CLKS      = CLKS_PER_BIT_X16;
+
+    // State Type Definition
+    localparam IDLE      = 3'b000;
+    localparam START_BIT = 3'b001;
+    localparam DATA_BITS_S = 3'b010;
+    localparam STOP_BIT  = 3'b011;
+    localparam CLEANUP   = 3'b100;
+
+    reg [2:0] r_Rx_State = IDLE;
+
+    // Internal Signals
+    reg [$clog2(BIT_CLKS)-1:0] r_Baud_Cnt   = 0;
+    reg [$clog2(DATA_BITS):0]  r_Bit_Cnt    = 0;
+    reg [DATA_BITS-1:0]        r_Data_Shift = 0;
+    reg                        r_RXD_Sync   = 1;
+    reg                        r_Data_Valid = 0;
+
+    // Synchronizer for i_RXD
+    always @(posedge i_Clk) begin
+        if (i_Rst)
+            r_RXD_Sync <= 1;
+        else
+            r_RXD_Sync <= i_RXD;
+    end
+
+    // Main Receiver State Machine
+    always @(posedge i_Clk) begin
+        // Default assignments for the next cycle
+        r_Data_Valid <= 1'b0;
+        o_Data_Ready <= 1'b0;
+
+        if (i_Rst) begin
+            r_Rx_State   <= IDLE;
+            r_Baud_Cnt   <= 0;
+            r_Bit_Cnt    <= 0;
+            r_Data_Shift <= 0;
+        end else begin
+            case (r_Rx_State)
+                
+                // 1. IDLE State: Wait for the falling edge (Start Bit)
+                IDLE: begin
+                    r_Baud_Cnt <= 0;
+                    r_Bit_Cnt  <= 0;
+                    if (r_RXD_Sync == 1'b0) begin
+                        // Detected a start bit transition (high to low)
+                        r_Rx_State <= START_BIT;
+                    end else begin
+                        r_Rx_State <= IDLE;
+                    end
+                end
+
+                // 2. START_BIT State: Wait for half a bit time to sample the center
+                START_BIT: begin
+                    if (r_Baud_Cnt == HALF_BIT_CLKS - 1) begin
+                        r_Baud_Cnt <= 0;
+                        // Sample the center of the start bit.
+                        if (r_RXD_Sync == 1'b0) begin
+                            r_Rx_State <= DATA_BITS_S;
+                        end else begin
+                            r_Rx_State <= IDLE; // Noise, return to IDLE
+                        end
+                    end else begin
+                        r_Baud_Cnt <= r_Baud_Cnt + 1;
+                    end
+                end
+
+                // 3. DATA_BITS State: Receive all 8 data bits
+                DATA_BITS_S: begin
+                    if (r_Baud_Cnt == BIT_CLKS - 1) begin
+                        r_Baud_Cnt <= 0;
+                        
+                        // Shift in the sampled data bit (LSB first)
+                        r_Data_Shift <= {r_RXD_Sync, r_Data_Shift[DATA_BITS-1:1]};
+                        
+                        if (r_Bit_Cnt == DATA_BITS - 1) begin
+                            // Finished receiving all 8 bits
+                            r_Bit_Cnt <= 0;
+                            r_Rx_State <= STOP_BIT;
+                        end else begin
+                            r_Bit_Cnt <= r_Bit_Cnt + 1;
+                        end
+                    end else begin
+                        r_Baud_Cnt <= r_Baud_Cnt + 1;
+                    end
+                end
+
+                // 4. STOP_BIT State: Check for the Stop Bit (should be high)
+                STOP_BIT: begin
+                    if (r_Baud_Cnt == BIT_CLKS - 1) begin
+                        r_Baud_Cnt <= 0;
+                        
+                        if (r_RXD_Sync == 1'b1) begin
+                            // Valid stop bit
+                            r_Data_Valid <= 1'b1;
+                            r_Rx_State   <= CLEANUP;
+                        end else begin
+                            // Framing Error
+                            r_Rx_State <= IDLE; 
+                        end
+                    end else begin
+                        r_Baud_Cnt <= r_Baud_Cnt + 1;
+                    end
+                end
+                
+                // 5. CLEANUP State: Hold data valid for one clock cycle
+                CLEANUP: begin
+                    r_Rx_State <= IDLE;
+                end
+                
+                default: r_Rx_State <= IDLE;
+
+            endcase
+        end
+    end
+    
+    // Output Logic
+    always @(posedge i_Clk) begin
+        o_Data       <= r_Data_Shift;
+        o_Data_Ready <= r_Data_Valid;
+    end
+
+endmodule

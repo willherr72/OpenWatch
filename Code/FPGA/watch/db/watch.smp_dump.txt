@@ -1,0 +1,35 @@
+
+State Machine - |de2i_150_top|lcd_driver:lcd_inst|next_state_after_delay
+Name next_state_after_delay.S_IDLE next_state_after_delay.S_DISP_ON next_state_after_delay.S_ENTRY_MODE next_state_after_delay.S_DISP_CLEAR next_state_after_delay.S_DISP_OFF next_state_after_delay.S_FUNC_SET next_state_after_delay.S_INIT_3 next_state_after_delay.S_INIT_2 
+next_state_after_delay.S_INIT_2 0 0 0 0 0 0 0 0 
+next_state_after_delay.S_INIT_3 0 0 0 0 0 0 1 1 
+next_state_after_delay.S_FUNC_SET 0 0 0 0 0 1 0 1 
+next_state_after_delay.S_DISP_OFF 0 0 0 0 1 0 0 1 
+next_state_after_delay.S_DISP_CLEAR 0 0 0 1 0 0 0 1 
+next_state_after_delay.S_ENTRY_MODE 0 0 1 0 0 0 0 1 
+next_state_after_delay.S_DISP_ON 0 1 0 0 0 0 0 1 
+next_state_after_delay.S_IDLE 1 0 0 0 0 0 0 1 
+
+State Machine - |de2i_150_top|lcd_driver:lcd_inst|state
+Name state.S_DELAY state.S_HOLD state.S_WAIT_EN state.S_IDLE state.S_DISP_ON state.S_ENTRY_MODE state.S_DISP_CLEAR state.S_DISP_OFF state.S_FUNC_SET state.S_INIT_3 state.S_INIT_2 state.S_INIT_1 state.S_PWR_UP 
+state.S_PWR_UP 0 0 0 0 0 0 0 0 0 0 0 0 0 
+state.S_INIT_1 0 0 0 0 0 0 0 0 0 0 0 1 1 
+state.S_INIT_2 0 0 0 0 0 0 0 0 0 0 1 0 1 
+state.S_INIT_3 0 0 0 0 0 0 0 0 0 1 0 0 1 
+state.S_FUNC_SET 0 0 0 0 0 0 0 0 1 0 0 0 1 
+state.S_DISP_OFF 0 0 0 0 0 0 0 1 0 0 0 0 1 
+state.S_DISP_CLEAR 0 0 0 0 0 0 1 0 0 0 0 0 1 
+state.S_ENTRY_MODE 0 0 0 0 0 1 0 0 0 0 0 0 1 
+state.S_DISP_ON 0 0 0 0 1 0 0 0 0 0 0 0 1 
+state.S_IDLE 0 0 0 1 0 0 0 0 0 0 0 0 1 
+state.S_WAIT_EN 0 0 1 0 0 0 0 0 0 0 0 0 1 
+state.S_HOLD 0 1 0 0 0 0 0 0 0 0 0 0 1 
+state.S_DELAY 1 0 0 0 0 0 0 0 0 0 0 0 1 
+
+State Machine - |de2i_150_top|uart_rx:uart_inst|state
+Name state.S_STOP_BIT state.S_DATA_BITS state.S_START_BIT state.S_IDLE state.S_CLEANUP 
+state.S_IDLE 0 0 0 0 0 
+state.S_START_BIT 0 0 1 1 0 
+state.S_DATA_BITS 0 1 0 1 0 
+state.S_STOP_BIT 1 0 0 1 0 
+state.S_CLEANUP 0 0 0 1 1 
