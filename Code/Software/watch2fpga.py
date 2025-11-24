@@ -106,6 +106,22 @@ def parse_bno055_orient(line):
     return None
 
 
+def parse_max30102(line):
+    """Parse MAX30102 heart rate sensor line"""
+    # MAX30102: HR: 72 BPM, SpO2: 98%
+    hr_match = re.search(r'HR:\s*(\d+)\s*BPM', line)
+    spo2_match = re.search(r'SpO2:\s*(\d+)', line)
+    
+    if hr_match and spo2_match:
+        hr = int(hr_match.group(1))
+        spo2 = int(spo2_match.group(1))
+        return [
+            f"Heart Rate:{hr}BPM",
+            f"SpO2: {spo2}%"
+        ]
+    return None
+
+
 def parse_sensor_data(buffer):
     """Parse sensor data from buffer and extract formatted LCD lines"""
     lcd_data = []
@@ -143,6 +159,12 @@ def parse_sensor_data(buffer):
             result = parse_bno055_orient(line)
             if result:
                 lcd_data.append(('BNO055_ORIENT', result))
+        
+        # MAX30102 Heart Rate Sensor
+        elif 'MAX30102:' in line and 'HR:' in line:
+            result = parse_max30102(line)
+            if result:
+                lcd_data.append(('MAX30102', result))
     
     return lcd_data
 
@@ -162,7 +184,7 @@ def send_to_lcd(output_serial, line1, line2):
 
 def main():
     # Serial port configuration
-    INPUT_PORT = 'COM15'
+    INPUT_PORT = 'COM3'
     OUTPUT_PORT = 'COM5'
     INPUT_BAUD = 115200  # Baud rate for sensor input
     OUTPUT_BAUD = 9600   # Baud rate for LCD output (adjust as needed)
