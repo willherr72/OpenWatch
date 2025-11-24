@@ -1605,48 +1605,41 @@ static void update_compass_screen() {
         return;
     }
     
-    /* Get BNO055 data */
-    BNO055Data imu_data = sensor_handler_get_bno055();
+    /* SPOOFED COMPASS DATA FOR VIDEO - Replace with real code when done */
+    float spoofed_yaw = 45.0;    // 45° = Northeast
+    float spoofed_pitch = 2.5;   // Slight tilt forward
+    float spoofed_roll = -1.2;   // Slight tilt left
     
-    if (imu_data.valid) {
-        /* Update digital readouts with label prefix */
-        static char buf[32];
+    /* Update digital readouts with label prefix */
+    static char buf[32];
+    
+    snprintf(buf, sizeof(buf), "Azm: %.1f°", spoofed_yaw);
+    lv_label_set_text(compass_yaw_label, buf);
+    
+    snprintf(buf, sizeof(buf), "Pitch: %.1f°", spoofed_pitch);
+    lv_label_set_text(compass_pitch_label, buf);
+    
+    snprintf(buf, sizeof(buf), "Roll: %.1f°", spoofed_roll);
+    lv_label_set_text(compass_roll_label, buf);
+    
+    /* Update compass needle rotation */
+    if (compass_needle) {
+        /* Calculate needle endpoint based on yaw angle */
+        float angle_rad = (spoofed_yaw) * 3.14159 / 180.0;
+        int center_x = 65;
+        int center_y = 65;
+        int needle_length = 42;
         
-        snprintf(buf, sizeof(buf), "Azm: %.1f°", imu_data.yaw);
-        lv_label_set_text(compass_yaw_label, buf);
+        int end_x = center_x + (int)(needle_length * cos(angle_rad));
+        int end_y = center_y - (int)(needle_length * sin(angle_rad));
         
-        snprintf(buf, sizeof(buf), "Pitch: %.1f°", imu_data.pitch);
-        lv_label_set_text(compass_pitch_label, buf);
+        static lv_point_t needle_points[2];
+        needle_points[0].x = center_x;
+        needle_points[0].y = center_y;
+        needle_points[1].x = end_x;
+        needle_points[1].y = end_y;
         
-        snprintf(buf, sizeof(buf), "Roll: %.1f°", imu_data.roll);
-        lv_label_set_text(compass_roll_label, buf);
-        
-        /* Update compass needle rotation */
-        if (compass_needle) {
-            /* Calculate needle endpoint based on yaw angle */
-            /* BNO055 Yaw: 0° = North, 90° = East, 180° = South, 270° = West */
-            /* Compass needle points TO North, so invert the yaw (add 180°) */
-            float angle_rad = (imu_data.yaw) * 3.14159 / 180.0;  // Convert to radians, invert direction
-            int center_x = 65;
-            int center_y = 65;
-            int needle_length = 42;
-            
-            int end_x = center_x + (int)(needle_length * cos(angle_rad));
-            int end_y = center_y - (int)(needle_length * sin(angle_rad));  // Subtract because Y increases downward
-            
-            static lv_point_t needle_points[2];
-            needle_points[0].x = center_x;
-            needle_points[0].y = center_y;
-            needle_points[1].x = end_x;
-            needle_points[1].y = end_y;
-            
-            lv_line_set_points(compass_needle, needle_points, 2);
-        }
-    } else {
-        /* No valid data */
-        lv_label_set_text(compass_yaw_label, "Azm: ---°");
-        lv_label_set_text(compass_pitch_label, "Pitch: ---°");
-        lv_label_set_text(compass_roll_label, "Roll: ---°");
+        lv_line_set_points(compass_needle, needle_points, 2);
     }
 }
 
@@ -1667,42 +1660,18 @@ static void update_gps_screen() {
     
     static char buf[64];
     
-    if (!gps_available) {
-        /* GPS not responding */
-        lv_label_set_text(gps_status_label, "GPS Not Responding");
-        lv_obj_set_style_text_color(gps_status_label, lv_color_hex(0xFF4444), 0);
-        lv_label_set_text(gps_sat_label, LV_SYMBOL_GPS " No GPS");
-        lv_obj_set_style_text_color(gps_sat_label, lv_color_hex(0xFF4444), 0);
-        
-        lv_label_set_text(gps_lat_label, "Lat: ---.------");
-        lv_label_set_text(gps_lon_label, "Lon: ---.------");
-    } else if (gps_data.valid) {
-        /* GPS lock acquired - show coordinates */
-        lv_label_set_text(gps_status_label, "GPS Locked");
-        lv_obj_set_style_text_color(gps_status_label, lv_color_hex(0x00FF88), 0);
-        
-        snprintf(buf, sizeof(buf), LV_SYMBOL_GPS " %d sats", gps_data.satellites);
-        lv_label_set_text(gps_sat_label, buf);
-        lv_obj_set_style_text_color(gps_sat_label, lv_color_hex(0x00FF88), 0);
-        
-        /* Display coordinates with 6 decimal places for precision */
-        snprintf(buf, sizeof(buf), "Lat: %.6f", gps_data.latitude);
-        lv_label_set_text(gps_lat_label, buf);
-        
-        snprintf(buf, sizeof(buf), "Lon: %.6f", gps_data.longitude);
-        lv_label_set_text(gps_lon_label, buf);
-    } else {
-        /* GPS is receiving data but no fix yet */
-        lv_label_set_text(gps_status_label, "Searching...");
-        lv_obj_set_style_text_color(gps_status_label, lv_color_hex(0xFFAA00), 0);
-        
-        snprintf(buf, sizeof(buf), LV_SYMBOL_GPS " %d sats", gps_data.satellites);
-        lv_label_set_text(gps_sat_label, buf);
-        lv_obj_set_style_text_color(gps_sat_label, lv_color_hex(0xFFAA00), 0);
-        
-        lv_label_set_text(gps_lat_label, "Lat: ---.------");
-        lv_label_set_text(gps_lon_label, "Lon: ---.------");
-    }
+    /* SPOOFED GPS DATA FOR VIDEO - Replace with real code when done */
+    /* GPS lock acquired - show spoofed coordinates */
+    lv_label_set_text(gps_status_label, "GPS Locked");
+    lv_obj_set_style_text_color(gps_status_label, lv_color_hex(0x00FF88), 0);
+    
+    /* Show 4 satellites */
+    lv_label_set_text(gps_sat_label, LV_SYMBOL_GPS " 4 sats");
+    lv_obj_set_style_text_color(gps_sat_label, lv_color_hex(0x00FF88), 0);
+    
+    /* Display spoofed coordinates: 29.57503785581415, -95.6505899196083 */
+    lv_label_set_text(gps_lat_label, "Lat: 29.575038");
+    lv_label_set_text(gps_lon_label, "Lon: -95.650590");
     
     /* Update altitude from BMP280 altimeter */
     /* Check if BMP280 sensor is available */
@@ -1786,8 +1755,8 @@ static void update_fitness_screen() {
         return;
     }
     
-    /* Get current step count */
-    int steps = sensor_handler_get_steps();
+    /* SPOOFED STEP COUNT FOR VIDEO - Replace with real code when done */
+    int steps = 7842;  // Spoofed step count
     
     /* Update arc progress (out of 10,000 goal) */
     lv_arc_set_value(fitness_steps_arc, steps > 10000 ? 10000 : steps);
@@ -1813,44 +1782,22 @@ static void update_heart_rate_screen() {
         return;
     }
     
-    /* Get MAX30102 data */
-    MAX30102Data hr_data = sensor_handler_get_max30102();
-    bool max_available = sensor_handler_max30102_available();
+    /* SPOOFED HEART RATE DATA FOR VIDEO - Replace with real code when done */
+    int spoofed_bpm = 72;      // Normal resting heart rate
+    int spoofed_spo2 = 98;     // Normal oxygen saturation
     
     static char buf[32];
     
-    if (!max_available) {
-        /* Sensor not detected - clean minimal message */
-        lv_label_set_text(hr_bpm_label, "---");
-        lv_label_set_text(hr_spo2_label, "---");
-        lv_label_set_text(hr_status_label, "No sensor");
-        lv_obj_set_style_text_color(hr_status_label, lv_color_hex(0x666666), 0);
-    } else if (hr_data.valid) {
-        /* Valid heart rate and SpO2 data */
-        snprintf(buf, sizeof(buf), "%d BPM", hr_data.heartRate);
-        lv_label_set_text(hr_bpm_label, buf);
-        
-        snprintf(buf, sizeof(buf), "%d%%", hr_data.spo2);
-        lv_label_set_text(hr_spo2_label, buf);
-        
-        /* Status message based on values */
-        if (hr_data.heartRate > 100) {
-            lv_label_set_text(hr_status_label, "Elevated");
-            lv_obj_set_style_text_color(hr_status_label, lv_color_hex(0xFFAA00), 0);
-        } else if (hr_data.heartRate < 60) {
-            lv_label_set_text(hr_status_label, "Low");
-            lv_obj_set_style_text_color(hr_status_label, lv_color_hex(0x4488FF), 0);
-        } else {
-            lv_label_set_text(hr_status_label, "Normal");
-            lv_obj_set_style_text_color(hr_status_label, lv_color_hex(0x00FF88), 0);
-        }
-    } else {
-        /* Sensor available but no valid reading */
-        lv_label_set_text(hr_bpm_label, "---");
-        lv_label_set_text(hr_spo2_label, "---");
-        lv_label_set_text(hr_status_label, "Place finger");
-        lv_obj_set_style_text_color(hr_status_label, lv_color_hex(0x888888), 0);
-    }
+    /* Display spoofed heart rate */
+    snprintf(buf, sizeof(buf), "%d BPM", spoofed_bpm);
+    lv_label_set_text(hr_bpm_label, buf);
+    
+    snprintf(buf, sizeof(buf), "%d%%", spoofed_spo2);
+    lv_label_set_text(hr_spo2_label, buf);
+    
+    /* Status: Normal */
+    lv_label_set_text(hr_status_label, "Normal");
+    lv_obj_set_style_text_color(hr_status_label, lv_color_hex(0x00FF88), 0);
 }
 
 /**
@@ -1862,61 +1809,20 @@ static void update_weather_screen() {
         return;
     }
     
-    static char buf[64];
-    unsigned long now = millis();
+    /* SPOOFED WEATHER DATA FOR VIDEO - Replace with real code when done */
+    float spoofed_temp = 75.0;              // 75°F - nice day
+    const char* spoofed_condition = "Partly Cloudy";
+    const char* spoofed_location = "Sugar Land, TX";
+    const char* spoofed_icon = "~";  // Cloudy weather icon
     
-    /* Check connection mode */
-    ConnectionMode mode = ble_handler_get_mode();
+    /* Display spoofed weather data */
+    lv_label_set_text(weather_temp_label, "75°F");
+    lv_label_set_text(weather_condition_label, spoofed_condition);
+    lv_label_set_text(weather_location_label, spoofed_location);
+    lv_label_set_text(weather_icon_label, spoofed_icon);
     
-    if (mode == ConnectionMode::WIFI) {
-        /* WiFi mode - fetch weather data if needed (every 10 minutes or if invalid) */
-        if (!weather_data.valid || (now - weather_data.last_update) > WEATHER_UPDATE_INTERVAL) {
-            /* Only fetch if we haven't tried recently (prevent spam on failure) */
-            static unsigned long last_attempt = 0;
-            if (now - last_attempt > 60000) {  // Try max once per minute
-                last_attempt = now;
-                fetch_weather_data();
-            }
-        }
-    }
-    
-    /* Update UI with current weather data */
-    if (weather_data.valid) {
-        /* Temperature in Fahrenheit */
-        snprintf(buf, sizeof(buf), "%.0f°F", weather_data.temp);
-        lv_label_set_text(weather_temp_label, buf);
-        
-        /* Condition */
-        lv_label_set_text(weather_condition_label, weather_data.condition.c_str());
-        
-        /* Location */
-        lv_label_set_text(weather_location_label, weather_data.location.c_str());
-        
-        /* Icon */
-        lv_label_set_text(weather_icon_label, weather_data.icon_text.c_str());
-        
-        /* Update watch face weather as well */
-        watch_face_set_weather(weather_data.temp, weather_data.icon_text.c_str());
-    } else {
-        /* No valid data */
-        ConnectionMode mode = ble_handler_get_mode();
-        if (mode == ConnectionMode::BLE) {
-            lv_label_set_text(weather_temp_label, "--°");
-            lv_label_set_text(weather_condition_label, "Weather needs WiFi");
-            lv_label_set_text(weather_location_label, "Switch to WiFi mode");
-            lv_label_set_text(weather_icon_label, "?");
-        } else {
-            if (WiFi.status() != WL_CONNECTED) {
-                lv_label_set_text(weather_temp_label, "--°");
-                lv_label_set_text(weather_condition_label, "No WiFi");
-                lv_label_set_text(weather_icon_label, "?");
-            } else {
-                lv_label_set_text(weather_temp_label, "--°");
-                lv_label_set_text(weather_condition_label, "Loading...");
-                lv_label_set_text(weather_icon_label, "?");
-            }
-        }
-    }
+    /* Update watch face weather as well */
+    watch_face_set_weather(spoofed_temp, spoofed_icon);
 }
 
 /**

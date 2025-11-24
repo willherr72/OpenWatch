@@ -73,21 +73,25 @@ const int ADC_MAX_VALUE = 4095;          // 12-bit ADC
  * @return Battery percentage (0-100)
  */
 int readBatteryPercentage() {
-    // Read ADC value from GPIO1
-    int adcValue = analogRead(BATTERY_ADC_PIN);
+    /* SPOOFED BATTERY LEVEL FOR VIDEO - Replace with real code when done */
+    return 87;  // Spoofed battery percentage
     
-    // Convert ADC value to voltage
-    // Using default attenuation (ADC_11db) which supports 0-3.9V range
-    float voltage = (adcValue / (float)ADC_MAX_VALUE) * ADC_VOLTAGE_REF;
-    
-    // Map voltage to percentage (2.64V = 0%, 3.36V = 100%)
-    float percentage = ((voltage - BATTERY_MIN_VOLTAGE) / (BATTERY_MAX_VOLTAGE - BATTERY_MIN_VOLTAGE)) * 100.0;
-    
-    // Clamp percentage to 0-100 range
-    if (percentage < 0) percentage = 0;
-    if (percentage > 100) percentage = 100;
-    
-    return (int)percentage;
+    // ORIGINAL CODE COMMENTED OUT FOR VIDEO:
+    // // Read ADC value from GPIO1
+    // int adcValue = analogRead(BATTERY_ADC_PIN);
+    // 
+    // // Convert ADC value to voltage
+    // // Using default attenuation (ADC_11db) which supports 0-3.9V range
+    // float voltage = (adcValue / (float)ADC_MAX_VALUE) * ADC_VOLTAGE_REF;
+    // 
+    // // Map voltage to percentage (2.64V = 0%, 3.36V = 100%)
+    // float percentage = ((voltage - BATTERY_MIN_VOLTAGE) / (BATTERY_MAX_VOLTAGE - BATTERY_MIN_VOLTAGE)) * 100.0;
+    // 
+    // // Clamp percentage to 0-100 range
+    // if (percentage < 0) percentage = 0;
+    // if (percentage > 100) percentage = 100;
+    // 
+    // return (int)percentage;
 }
 
 void setup() {

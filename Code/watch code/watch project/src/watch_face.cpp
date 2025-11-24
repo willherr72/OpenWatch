@@ -514,16 +514,12 @@ void watch_face_update() {
         lv_obj_set_style_text_opa(time_label, LV_OPA_COVER, 0);
     }
     
-    /* Update step count from sensor */
-    watch_face_set_steps(sensor_handler_get_steps());
+    /* SPOOFED DATA FOR VIDEO - Replace with real code when done */
+    /* Spoofed step count */
+    watch_face_set_steps(7842);
     
-    /* Update heart rate from sensor */
-    MAX30102Data hr_data = sensor_handler_get_max30102();
-    if (hr_data.valid && hr_data.heartRate > 0) {
-        watch_face_set_heart_rate(hr_data.heartRate);
-    } else {
-        watch_face_set_heart_rate(0);  // Show "--" when no valid data
-    }
+    /* Spoofed heart rate */
+    watch_face_set_heart_rate(72);
 }
 
 /**
