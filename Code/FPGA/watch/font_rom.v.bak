@@ -1,0 +1,28 @@
+module font_rom (
+    input  wire [6:0] char_code, // ASCII character (0-127)
+    input  wire [3:0] row,       // Row of the character (0-15)
+    output reg  [7:0] row_pixels // Pixel data for that row
+);
+    // Simple 8x16 font map (Inferred ROM)
+    always @(*) begin
+        case ({char_code, row})
+            // Example: 'A' (0x41)
+            {7'h41, 4'h0}: row_pixels = 8'h00;
+            {7'h41, 4'h1}: row_pixels = 8'h00;
+            {7'h41, 4'h2}: row_pixels = 8'h18;
+            {7'h41, 4'h3}: row_pixels = 8'h24;
+            {7'h41, 4'h4}: row_pixels = 8'h42;
+            {7'h41, 4'h5}: row_pixels = 8'h42;
+            {7'h41, 4'h6}: row_pixels = 8'h7E; // Middle bar
+            {7'h41, 4'h7}: row_pixels = 8'h42;
+            {7'h41, 4'h8}: row_pixels = 8'h42;
+            {7'h41, 4'h9}: row_pixels = 8'h42;
+            {7'h41, 4'hA}: row_pixels = 8'h00;
+            // ... You should ideally load a full font .mif file here ...
+            // For demo purposes, if no case matches, output a solid block for debugging
+            default: row_pixels = 8'hFF; 
+        endcase
+    end
+    // Note: To get a full font, use Quartus IP Catalog -> ROM: 1-PORT 
+    // and load a "font8x16.mif" file, which you can find online easily.
+endmodule

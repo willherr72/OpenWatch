@@ -2,27 +2,34 @@ module de2i_150_top(
     input  wire        CLOCK_50,
     input  wire [3:0]  KEY,         // KEY[0] is Reset
     input  wire        UART_RXD,    // UART RX (Data In)
-    output wire        UART_TXD,    // UART TX (Data Out - Optional loopback)
-    input  wire        UART_CTS,    // UART CTS (Input from PC)
-    output wire        UART_RTS,    // UART RTS (Output to PC - Flow Control)
+    output wire        UART_TXD,    // UART TX (Data Out)
+    input  wire        UART_CTS,    
+    output wire        UART_RTS,    // Flow Control
     
     // LCD Interface
     output wire [7:0]  LCD_DATA,
     output wire        LCD_RW,
     output wire        LCD_EN,
     output wire        LCD_RS,
-    output wire        LCD_ON
+    output wire        LCD_ON,
+
+    // VGA Interface
+    output wire        VGA_CLK,      // VGA Pixel Clock
+    output wire        VGA_HS,       // H_SYNC
+    output wire        VGA_VS,       // V_SYNC
+    output wire        VGA_BLANK_N,  // Direct Blanking
+    output wire        VGA_SYNC_N,   // Sync on Green
+    output wire [7:0]  VGA_R,
+    output wire [7:0]  VGA_G,
+    output wire [7:0]  VGA_B
 );
 
     wire rst_n = KEY[0];
     
-    // --- FLOW CONTROL FIX ---
-    // Drive RTS Low (0) to signal "Ready to Receive" to the PC.
-    // The ZT3232 transceiver inverts this to +V (Asserted) on the RS-232 cable.
-    assign UART_RTS = 1'b0; 
-    
-    // Optional: Loopback TX for testing (echoes received data back to PC)
-    assign UART_TXD = 1'b1; // Idle High
+    // Drive RTS Low (Ready to Receive)
+    assign UART_RTS = 1'b0;
+    // Loopback TX High (Idle)
+    assign UART_TXD = 1'b1;
     
     // UART Signals
     wire [7:0] rx_data;
@@ -39,13 +46,14 @@ module de2i_150_top(
     reg [1:0]  fsm_state;
     
     localparam S_IDLE       = 0;
-    localparam S_PRINT      = 1;
+    localparam S_PRINT      = 1; // Not strictly used in simple FSM below
     localparam S_NEWLINE    = 2;
     localparam S_CLEAR      = 3;
     localparam S_WAIT_LCD   = 4;
 
-    // Instantiate UART Receiver
-    // Default 9600 baud. 
+    // ---------------------------------------------------------
+    // 1. UART Receiver
+    // ---------------------------------------------------------
     uart_rx #(
         .CLOCK_FREQ(50000000),
         .BAUD_RATE(9600) 
@@ -57,7 +65,9 @@ module de2i_150_top(
         .rx_ready(rx_ready)
     );
 
-    // Instantiate LCD Driver
+    // ---------------------------------------------------------
+    // 2. LCD Driver & State Machine (Restored)
+    // ---------------------------------------------------------
     lcd_driver lcd_inst (
         .clk(CLOCK_50),
         .rst_n(rst_n),
@@ -72,12 +82,14 @@ module de2i_150_top(
         .LCD_ON(LCD_ON)
     );
 
-    // Main Logic Controller
+    // LCD Main Logic Controller
     always @(posedge CLOCK_50 or negedge rst_n) begin
         if (!rst_n) begin
             char_count <= 0;
             lcd_char_valid <= 0;
             fsm_state <= S_IDLE;
+            lcd_char_data <= 0;
+            lcd_cmd_type <= 0;
         end else begin
             // Default valid to 0
             lcd_char_valid <= 0;
@@ -97,12 +109,9 @@ module de2i_150_top(
                     // Wait for LCD to accept command and finish
                     if (!lcd_busy) begin
                         char_count <= char_count + 1;
-                        
-                        // Logic to wrap lines
-                        // 0-15: Line 1
-                        // 16-31: Line 2
+                        // Logic to wrap lines: 0-15: Line 1, 16-31: Line 2
                         if (char_count == 15) begin
-                            fsm_state <= S_NEWLINE;
+                             fsm_state <= S_NEWLINE;
                         end else if (char_count == 31) begin
                             fsm_state <= S_CLEAR;
                         end else begin
@@ -112,17 +121,15 @@ module de2i_150_top(
                 end
 
                 S_NEWLINE: begin
-                    // Move cursor to Line 2
                     if (!lcd_busy) begin
                         lcd_cmd_type <= 2'b10; // Command: Goto Line 2
                         lcd_char_valid <= 1;
-                        fsm_state <= S_IDLE; // Return to IDLE to wait for next char
+                        fsm_state <= S_IDLE;
                     end
                 end
 
                 S_CLEAR: begin
-                    // Clear Screen and reset cursor
-                    if (!lcd_busy) begin
+                     if (!lcd_busy) begin
                         lcd_cmd_type <= 2'b11; // Command: Clear
                         lcd_char_valid <= 1;
                         char_count <= 0;
@@ -132,5 +139,51 @@ module de2i_150_top(
             endcase
         end
     end
+
+    // ---------------------------------------------------------
+    // 3. VGA Subsystem
+    // ---------------------------------------------------------
+    wire pixel_clk; 
+    wire pll_locked;
+    
+    // Instantiating the PLL generated in Step 1
+    vga_pll pll_inst (
+        .inclk0(CLOCK_50),
+        .c0(pixel_clk),
+        .locked(pll_locked)
+    );
+    
+    // VGA Controller
+    wire [11:0] vga_x, vga_y;
+    wire video_active;
+    
+    vga_controller vga_c (
+        .pixel_clk(pixel_clk),
+        .rst_n(rst_n & pll_locked),
+        .x(vga_x),
+        .y(vga_y),
+        .video_on(video_active),
+        .h_sync(VGA_HS),
+        .v_sync(VGA_VS),
+        .blank_n(VGA_BLANK_N),
+        .sync_n(VGA_SYNC_N)
+    );
+    
+    assign VGA_CLK = pixel_clk; // Output clock to DAC
+    
+    // Text Generator
+    text_screen_gen text_gen (
+        .clk(CLOCK_50),
+        .pixel_clk(pixel_clk),
+        .rst_n(rst_n),
+        .x(vga_x),
+        .y(vga_y),
+        .video_on(video_active),
+        .uart_data(rx_data),
+        .uart_valid(rx_ready), // Share the valid pulse with VGA
+        .vga_r(VGA_R),
+        .vga_g(VGA_G),
+        .vga_b(VGA_B)
+    );
 
 endmodule
