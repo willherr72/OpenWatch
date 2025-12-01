@@ -1,13 +1,13 @@
-Analysis & Synthesis Status : Successful - Tue Nov 18 13:36:32 2025
+Analysis & Synthesis Status : Successful - Mon Nov 24 13:18:31 2025
 Quartus Prime Version : 24.1std.0 Build 1077 03/04/2025 SC Lite Edition
 Revision Name : watch
 Top-level Entity Name : de2i_150_top
 Family : Cyclone IV GX
-Total logic elements : 192
-    Total combinational functions : 173
-    Dedicated logic registers : 106
-Total registers : 106
-Total pins : 21
+Total logic elements : 52,945
+    Total combinational functions : 24,233
+    Dedicated logic registers : 28,841
+Total registers : 28841
+Total pins : 50
 Total virtual pins : 0
 Total memory bits : 0
 Embedded Multiplier 9-bit elements : 0
@@ -15,4 +15,4 @@ Total GXB Receiver Channel PCS : 0
 Total GXB Receiver Channel PMA : 0
 Total GXB Transmitter Channel PCS : 0
 Total GXB Transmitter Channel PMA : 0
-Total PLLs : 0
+Total PLLs : 1

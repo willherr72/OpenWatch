@@ -1,5 +1,5 @@
 Flow report for watch
-Tue Nov 18 13:36:54 2025
+Mon Nov 24 13:43:36 2025
 Quartus Prime Version 24.1std.0 Build 1077 03/04/2025 SC Lite Edition
 
 
@@ -41,18 +41,18 @@ on the Quartus Prime software download page.
 +--------------------------------------------------------------------------------------+
 ; Flow Summary                                                                         ;
 +------------------------------------+-------------------------------------------------+
-; Flow Status                        ; Successful - Tue Nov 18 13:36:54 2025           ;
+; Flow Status                        ; Successful - Mon Nov 24 13:43:36 2025           ;
 ; Quartus Prime Version              ; 24.1std.0 Build 1077 03/04/2025 SC Lite Edition ;
 ; Revision Name                      ; watch                                           ;
 ; Top-level Entity Name              ; de2i_150_top                                    ;
 ; Family                             ; Cyclone IV GX                                   ;
 ; Device                             ; EP4CGX150DF31C7                                 ;
 ; Timing Models                      ; Final                                           ;
-; Total logic elements               ; 189 / 149,760 ( < 1 % )                         ;
-;     Total combinational functions  ; 173 / 149,760 ( < 1 % )                         ;
-;     Dedicated logic registers      ; 106 / 149,760 ( < 1 % )                         ;
-; Total registers                    ; 106                                             ;
-; Total pins                         ; 21 / 508 ( 4 % )                                ;
+; Total logic elements               ; 38,784 / 149,760 ( 26 % )                       ;
+;     Total combinational functions  ; 24,233 / 149,760 ( 16 % )                       ;
+;     Dedicated logic registers      ; 28,841 / 149,760 ( 19 % )                       ;
+; Total registers                    ; 28841                                           ;
+; Total pins                         ; 50 / 508 ( 10 % )                               ;
 ; Total virtual pins                 ; 0                                               ;
 ; Total memory bits                  ; 0 / 6,635,520 ( 0 % )                           ;
 ; Embedded Multiplier 9-bit elements ; 0 / 720 ( 0 % )                                 ;
@@ -60,7 +60,7 @@ on the Quartus Prime software download page.
 ; Total GXB Receiver Channel PMA     ; 0 / 8 ( 0 % )                                   ;
 ; Total GXB Transmitter Channel PCS  ; 0 / 8 ( 0 % )                                   ;
 ; Total GXB Transmitter Channel PMA  ; 0 / 8 ( 0 % )                                   ;
-; Total PLLs                         ; 0 / 8 ( 0 % )                                   ;
+; Total PLLs                         ; 1 / 8 ( 13 % )                                  ;
 +------------------------------------+-------------------------------------------------+
 
 
@@ -69,7 +69,7 @@ on the Quartus Prime software download page.
 +-------------------+---------------------+
 ; Option            ; Setting             ;
 +-------------------+---------------------+
-; Start date & time ; 11/18/2025 13:36:26 ;
+; Start date & time ; 11/24/2025 13:17:17 ;
 ; Main task         ; Compilation         ;
 ; Revision Name     ; watch               ;
 +-------------------+---------------------+
@@ -80,7 +80,7 @@ on the Quartus Prime software download page.
 +-------------------------------------+----------------------------------------+---------------+--------------+-----------------------------------+
 ; Assignment Name                     ; Value                                  ; Default Value ; Entity Name  ; Section Id                        ;
 +-------------------------------------+----------------------------------------+---------------+--------------+-----------------------------------+
-; COMPILER_SIGNATURE_ID               ; 22563607592834.176349458606184         ; --            ; --           ; --                                ;
+; COMPILER_SIGNATURE_ID               ; 22563607592834.176401183712636         ; --            ; --           ; --                                ;
 ; EDA_GENERATE_FUNCTIONAL_NETLIST     ; Off                                    ; --            ; --           ; eda_board_design_timing           ;
 ; EDA_GENERATE_FUNCTIONAL_NETLIST     ; Off                                    ; --            ; --           ; eda_board_design_boundary_scan    ;
 ; EDA_GENERATE_FUNCTIONAL_NETLIST     ; Off                                    ; --            ; --           ; eda_board_design_signal_integrity ;
@@ -90,6 +90,8 @@ on the Quartus Prime software download page.
 ; EDA_TIME_SCALE                      ; 1 ps                                   ; --            ; --           ; eda_simulation                    ;
 ; MAX_CORE_JUNCTION_TEMP              ; 85                                     ; --            ; --           ; --                                ;
 ; MIN_CORE_JUNCTION_TEMP              ; 0                                      ; --            ; --           ; --                                ;
+; MISC_FILE                           ; vga_pll_bb.v                           ; --            ; --           ; --                                ;
+; MISC_FILE                           ; vga_pll.ppf                            ; --            ; --           ; --                                ;
 ; NOMINAL_CORE_SUPPLY_VOLTAGE         ; 1.2V                                   ; --            ; --           ; --                                ;
 ; PARTITION_COLOR                     ; -- (Not supported for targeted family) ; --            ; de2i_150_top ; Top                               ;
 ; PARTITION_FITTER_PRESERVATION_LEVEL ; -- (Not supported for targeted family) ; --            ; de2i_150_top ; Top                               ;
@@ -106,12 +108,12 @@ on the Quartus Prime software download page.
 +----------------------+--------------+-------------------------+---------------------+------------------------------------+
 ; Module Name          ; Elapsed Time ; Average Processors Used ; Peak Virtual Memory ; Total CPU Time (on all processors) ;
 +----------------------+--------------+-------------------------+---------------------+------------------------------------+
-; Analysis & Synthesis ; 00:00:06     ; 1.0                     ; 4887 MB             ; 00:00:11                           ;
-; Fitter               ; 00:00:12     ; 1.0                     ; 6077 MB             ; 00:00:21                           ;
-; Assembler            ; 00:00:04     ; 1.0                     ; 5129 MB             ; 00:00:03                           ;
-; Timing Analyzer      ; 00:00:01     ; 1.0                     ; 4929 MB             ; 00:00:02                           ;
-; EDA Netlist Writer   ; 00:00:01     ; 1.0                     ; 4742 MB             ; 00:00:00                           ;
-; Total                ; 00:00:24     ; --                      ; --                  ; 00:00:37                           ;
+; Analysis & Synthesis ; 00:01:13     ; 1.0                     ; 5229 MB             ; 00:01:12                           ;
+; Fitter               ; 00:24:28     ; 1.1                     ; 6763 MB             ; 00:44:54                           ;
+; Assembler            ; 00:00:06     ; 1.0                     ; 5289 MB             ; 00:00:06                           ;
+; Timing Analyzer      ; 00:00:14     ; 1.4                     ; 5453 MB             ; 00:00:18                           ;
+; EDA Netlist Writer   ; 00:00:05     ; 1.0                     ; 4981 MB             ; 00:00:05                           ;
+; Total                ; 00:26:06     ; --                      ; --                  ; 00:46:35                           ;
 +----------------------+--------------+-------------------------+---------------------+------------------------------------+
 
 

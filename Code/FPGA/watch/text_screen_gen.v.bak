@@ -1,0 +1,88 @@
+module text_screen_gen (
+    input  wire        clk,          // 50MHz system clock
+    input  wire        pixel_clk,    // 148.5MHz VGA clock
+    input  wire        rst_n,
+    input  wire [11:0] x,
+    input  wire [11:0] y,
+    input  wire        video_on,
+    
+    // UART Interface
+    input  wire [7:0]  uart_data,
+    input  wire        uart_valid,
+    
+    // RGB Output
+    output reg  [7:0]  vga_r,
+    output reg  [7:0]  vga_g,
+    output reg  [7:0]  vga_b
+);
+
+    // Screen Dimensions (Characters)
+    // 1920 / 8 = 240 chars wide
+    // 1080 / 16 = 67 chars high
+    localparam COLS = 80; // Limit to 80 columns for readability
+    localparam ROWS = 30; // Limit to 30 rows 
+    
+    // Text Buffer (Dual Port RAM inference)
+    // Port A: Write (UART), Port B: Read (VGA)
+    reg [6:0] char_ram [0:COLS*ROWS-1];
+    
+    // Cursor Logic
+    reg [11:0] cursor_pos;
+    
+    // Write Logic (System Clock Domain)
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            cursor_pos <= 0;
+        end else if (uart_valid) begin
+            // Handle simple scrolling or wrapping
+            char_ram[cursor_pos] <= uart_data[6:0]; // Store ASCII
+            
+            if (cursor_pos < COLS*ROWS - 1)
+                cursor_pos <= cursor_pos + 1;
+            else
+                cursor_pos <= 0; // Wrap to top (simple ring buffer)
+        end
+    end
+
+    // Read Logic (Pixel Clock Domain)
+    wire [6:0] char_code;
+    wire [3:0] char_row;
+    wire [2:0] char_col;
+    
+    // Calculate which character grid we are in
+    // Scale up x2 to make text bigger (16x32 pixels)
+    wire [11:0] grid_x = x[11:1]; // x / 2
+    wire [11:0] grid_y = y[11:1]; // y / 2
+    
+    // Calculate RAM address
+    wire [11:0] col_idx = grid_x[11:3]; // divide by 8
+    wire [11:0] row_idx = grid_y[11:4]; // divide by 16
+    wire [11:0] read_addr = (row_idx * COLS) + col_idx;
+    
+    assign char_code = (col_idx < COLS && row_idx < ROWS) ? char_ram[read_addr] : 7'h20; // Space if out of bounds
+    assign char_row  = grid_y[3:0]; // row within char
+    assign char_col  = grid_x[2:0]; // col within char
+    
+    // Font Lookup
+    wire [7:0] font_byte;
+    font_rom f_rom (
+        .char_code(char_code),
+        .row(char_row),
+        .row_pixels(font_byte)
+    );
+    
+    wire pixel_on = font_byte[~char_col]; // Reverse bit order usually
+    
+    always @(posedge pixel_clk) begin
+        if (video_on && pixel_on) begin
+            vga_r <= 8'hFF; // White Text
+            vga_g <= 8'hFF;
+            vga_b <= 8'hFF;
+        end else begin
+            vga_r <= 8'h00; // Black Background
+            vga_g <= 8'h00;
+            vga_b <= 8'h00;
+        end
+    end
+
+endmodule
